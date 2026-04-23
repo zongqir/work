@@ -1,0 +1,22 @@
+CREATE TABLE notification_outbox (
+  message_id VARCHAR(128) NOT NULL,
+  biz_type VARCHAR(64) NOT NULL,
+  event_code VARCHAR(64) NOT NULL,
+  template_code VARCHAR(128) NOT NULL,
+  receiver_json LONGTEXT NOT NULL,
+  payload_json LONGTEXT NOT NULL,
+  idempotent_key VARCHAR(128) NOT NULL,
+  trace_id VARCHAR(128) DEFAULT NULL,
+  priority INT NOT NULL DEFAULT 0,
+  headers_json LONGTEXT DEFAULT NULL,
+  meta_json LONGTEXT DEFAULT NULL,
+  status VARCHAR(32) NOT NULL,
+  retry_count INT NOT NULL DEFAULT 0,
+  next_retry_at DATETIME(6) NOT NULL,
+  last_error VARCHAR(1024) DEFAULT NULL,
+  created_at DATETIME(6) NOT NULL,
+  updated_at DATETIME(6) NOT NULL,
+  PRIMARY KEY (message_id),
+  UNIQUE KEY uk_notification_outbox_idempotent_key (idempotent_key),
+  KEY idx_notification_outbox_status_retry (status, next_retry_at, created_at, message_id)
+);
