@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>AES通知配置系统 - 用户旅程</title>
+  </head>
+  <body>
+    <outline text="AES通知配置系统 - 用户旅程">
+      <outline text="1 设计目标">
+        <outline text="从不同管理员视角梳理何时需要通知、为什么需要通知、收到通知后要完成什么动作" />
+        <outline text="为统一通知配置入口、列表/详情/编辑页和通知策略能力提供业务依据" />
+        <outline text="内容结合 AES通知配置-IPD思维导图.md 与 AES通知配置需求文档.md 提炼" />
+      </outline>
+      <outline text="2 用户旅程">
+        <outline text="2.1 安全管理员">
+          <outline text="2.1.1 场景一：检测响应和病毒防护">
+            <outline text="用户何时需要：终端发生高危威胁时" />
+            <outline text="场景明细：检出病毒/恶意网址，命中自定义IOC策略，检出安全告警/事件" />
+            <outline text="用户意图：及时获得告警信息，判断是否面临真实攻击和风险等级，决定是否紧急处理以避免横向移动" />
+            <outline text="二级场景：紧急研判和闭环处置" />
+            <outline text="二级意图：第一时间介入调查，判断威胁真实性和严重程度，并进行相应处置避免威胁扩散" />
+            <outline text="三级场景：通过企微/Webhook/邮件收到实时或高频汇总推送，点击链接直达事件详情页" />
+            <outline text="能力诉求：支持渠道配置、实时/聚合模式、推送频率、接收对象、详情页跳转" />
+          </outline>
+          <outline text="2.1.2 场景二：任务和响应">
+            <outline text="用户何时需要：耗时异步任务执行状态变化时" />
+            <outline text="场景明细：病毒查杀任务、升级任务" />
+            <outline text="用户意图：下发任务后通常会离开控制台，希望感知任务执行状态变化并掌握执行进度" />
+            <outline text="二级场景：核实动作生效和异常干预" />
+            <outline text="二级意图：确认长时间异步任务最终状态；若失败或部分失败，及时跟进人工干预" />
+            <outline text="三级场景：指定关注某类任务，收到任务执行状态和结果通知，直达任务详情页" />
+            <outline text="能力诉求：支持按任务类型订阅、按执行状态通知、失败结果提示、详情跳转" />
+          </outline>
+        </outline>
+        <outline text="2.2 IT运维管理员">
+          <outline text="2.2.1 场景三：客户端运维">
+            <outline text="用户何时需要：终端出现大面积运维故障时" />
+            <outline text="场景明细：客户端大面积离线、升级失败、端点资源占用持续过高" />
+            <outline text="用户意图：掌握全网端点在线率和健康度，确保安全防护能力持续有效覆盖" />
+            <outline text="二级场景：排障和恢复防护能力" />
+            <outline text="二级意图：确定哪些终端发生了什么故障，及时介入排查并恢复防护能力" />
+            <outline text="三级场景：指定关注资产，收到系统运维告警推送；支持区间合并避免刷屏；进入客户端管理排查" />
+            <outline text="能力诉求：支持资产范围配置、资产组配置、区间合并/聚合、运维页面跳转" />
+          </outline>
+        </outline>
+        <outline text="2.3 系统/安全管理员">
+          <outline text="2.3.1 场景四：系统管理">
+            <outline text="用户何时需要：平台资源告急或组件异常时" />
+            <outline text="场景明细：平台授权即将到期、服务器磁盘不足、服务器CPU/MEM占用率异常" />
+            <outline text="用户意图：保障平台稳定运行、资源充足和业务合规连续" />
+            <outline text="二级场景：保障系统稳定与业务连续" />
+            <outline text="二级意图：评估影响范围，续费许可，清理存储空间，排查服务异常" />
+            <outline text="三级场景：提前或每日下班前收到系统预警邮件通知" />
+            <outline text="能力诉求：支持提前提醒、固定时间提醒、平台预警类消息模板和邮件通道" />
+          </outline>
+        </outline>
+        <outline text="2.4 系统管理员">
+          <outline text="2.4.1 场景五：系统审计和账号安全">
+            <outline text="用户何时需要：发生敏感行为时" />
+            <outline text="场景明细：平台登录、关键角色账号创建、账号授权即将过期等账号与角色相关通知" />
+            <outline text="用户意图：监控平台自身安全防线，防止内部违规操作或外部攻击者接管控制台" />
+            <outline text="二级场景：审计追溯和账号风险阻断" />
+            <outline text="二级意图：确认是否是恶意行为，立即冻结相关账号并追溯完整审计日志" />
+            <outline text="三级场景：接受审计告警推送，根据行为、关联账号、访问IP判断是否登录控制台进行阻断或追溯" />
+            <outline text="能力诉求：支持账号/角色类消息统一配置，依赖XDR提供用户信息与底层承接能力" />
+          </outline>
+        </outline>
+        <outline text="2.5 任意管理员">
+          <outline text="2.5.1 场景六：收到不关注的消息推送">
+            <outline text="用户何时需要：收到与自己无关或过于频繁的消息时" />
+            <outline text="用户意图：关闭给自己的推送，避免过度打扰" />
+            <outline text="二级场景：关闭消息推送或修改策略" />
+            <outline text="二级意图：快速完成取消订阅、调整频率、修改接收对象等操作" />
+            <outline text="三级场景：从消息中点击链接直接跳转通知配置页面，调整是否接收、接收频率或接收渠道" />
+            <outline text="能力诉求：消息内容内置配置跳转链接，配置保存后立即影响后续未发送记录" />
+          </outline>
+        </outline>
+      </outline>
+      <outline text="3 从用户旅程推导的核心需求">
+        <outline text="3.1 统一配置入口">
+          <outline text="按消息类型组织配置，而不是分散在多个菜单中" />
+          <outline text="统一提供列表、详情和编辑页" />
+        </outline>
+        <outline text="3.2 统一订阅模型">
+          <outline text="支持按消息类型启用/关闭通知" />
+          <outline text="支持配置渠道、接收对象、推送频率和场景扩展条件" />
+          <outline text="接收对象支持按用户、邮箱、手机号、Webhook标识等方式选择" />
+        </outline>
+        <outline text="3.3 场景化扩展条件">
+          <outline text="安全事件和运维场景至少支持资产ID和资产组ID" />
+          <outline text="任务场景支持按任务类型、状态、结果配置通知" />
+          <outline text="系统预警支持提前提醒和固定时间提醒" />
+          <outline text="账号与角色通知需与XDR现有能力协同" />
+        </outline>
+        <outline text="3.4 频率控制与聚合">
+          <outline text="高危事件支持实时推送和按X小时聚合汇总" />
+          <outline text="运维类消息支持区间合并，避免刷屏" />
+          <outline text="频率调整后需明确提示影响范围" />
+        </outline>
+        <outline text="3.5 消息内容可闭环">
+          <outline text="消息需包含标题、时间、摘要、关键上下文和业务跳转链接" />
+          <outline text="不同场景支持跳转到详情页或当前消息类型的配置页" />
+        </outline>
+        <outline text="3.6 默认配置与租户生效视图">
+          <outline text="支持默认配置 + 租户覆盖两层模型" />
+          <outline text="用户直接看到当前最终生效值，并区分默认值和租户覆盖值" />
+        </outline>
+        <outline text="3.7 可治理与可追溯">
+          <outline text="配置保存后立即影响后续未发送记录；已进入发送过程的记录按发送快照执行" />
+          <outline text="记录配置修改人、修改时间、修改前后差异、消息发送结果和失败原因" />
+          <outline text="具备幂等、有限重试、限流识别、监控指标和日志追踪能力" />
+        </outline>
+      </outline>
+      <outline text="4 边界与依赖">
+        <outline text="4.1 AES负责">
+          <outline text="统一通知配置、统一发送、统一治理、统一观测和统一审计" />
+          <outline text="承接业务方产出的通知结果，或按约定调用业务标准接口获取标准化结果" />
+        </outline>
+        <outline text="4.2 XDR负责">
+          <outline text="登录、用户、租户、授权、权限、底层通知通道等底座能力" />
+          <outline text="账号与角色类通知场景的查询、变更、用户信息列表和实际承接能力" />
+        </outline>
+        <outline text="4.3 待明确项">
+          <outline text="企业微信、Webhook、邮件三类通道当前阶段是否全部上线" />
+          <outline text="短信模板结构、参数校验规则和供应商边界" />
+          <outline text="资产组归属判断由业务方负责还是由AES统一查询能力负责" />
+          <outline text="告警类场景是否由消息中心主动拉取业务侧标准接口结果" />
+          <outline text="配置缓存生效时延、Prometheus指标和告警阈值" />
+        </outline>
+      </outline>
+    </outline>
+  </body>
+</opml>

@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>AES通知配置系统 - IPD思维导图</title>
+  </head>
+  <body>
+    <outline text="AES通知配置系统 - IPD思维导图">
+      <outline text="1 用户需求">
+        <outline text="1.1 业务背景">
+          <outline text="AES 现有通知入口分散，配置方式不一致" />
+          <outline text="不同场景缺少统一的渠道、频率、接收对象和模板承接方式" />
+          <outline text="高危消息、低危消息、汇总消息缺少统一治理" />
+          <outline text="配置变更、发送结果和失败原因缺少统一追踪" />
+        </outline>
+        <outline text="1.2 用户角色">
+          <outline text="安全管理员" />
+          <outline text="IT 运维管理员" />
+          <outline text="系统管理员" />
+          <outline text="兼具系统和安全职责的管理员" />
+          <outline text="收到消息后需要调整策略的任意管理员" />
+        </outline>
+        <outline text="1.3 用户目标">
+          <outline text="围绕消息类型完成订阅、接收、处置和调整" />
+          <outline text="在统一入口完成配置查询、修改和生效确认" />
+          <outline text="在收到噪音消息后快速关闭或调整推送策略" />
+        </outline>
+        <outline text="1.4 技术故事">
+          <outline text="解决通知配置入口分散、场景不统一、治理能力缺失的问题" />
+          <outline text="AES 负责统一配置、统一发送、统一治理，不负责定义业务语义" />
+          <outline text="巡检类优先由业务方产出结果，告警类可按约定调用业务标准接口" />
+        </outline>
+      </outline>
+      <outline text="2 功能性需求">
+        <outline text="2.1 功能需求点1：统一通知配置管理">
+          <outline text="2.1.1 功能描述">
+            <outline text="提供统一通知配置入口，按消息类型组织配置" />
+            <outline text="支持启用/关闭、发送渠道、接收对象、推送频率和扩展条件配置" />
+            <outline text="支持默认配置加租户覆盖两层模型，并提供最终生效视图" />
+          </outline>
+          <outline text="2.1.2 正常场景">
+            <outline text="管理员查看消息类型和当前配置" />
+            <outline text="管理员修改渠道、接收对象、频率后保存并立即生效" />
+            <outline text="管理员查看最终生效值并区分默认值和租户覆盖值" />
+          </outline>
+          <outline text="2.1.3 异常场景">
+            <outline text="配置字段非法或缺失，保存失败并提示原因" />
+            <outline text="外部同步失败时，不展示为已生效" />
+            <outline text="模板缺失或渠道不支持时，阻断发送或按预设规则处理" />
+          </outline>
+          <outline text="2.1.4 约束条件">
+            <outline text="仅管理通知域配置，不扩展到底座通用能力" />
+            <outline text="已进入发送过程的记录按发送快照执行" />
+          </outline>
+          <outline text="2.1.5 依赖与风险">
+            <outline text="依赖 XDR 底座能力" />
+            <outline text="默认值定义、生效时延和字段口径未完全对齐" />
+          </outline>
+        </outline>
+        <outline text="2.2 功能需求点2：场景化通知策略与筛选">
+          <outline text="2.2.1 功能描述">
+            <outline text="支持安全事件、任务、运维、系统、账号等不同场景筛选条件" />
+            <outline text="安全事件和运维场景至少支持资产 ID 和资产组 ID" />
+            <outline text="当只有资产 ID 时，需要统一资产归属判断能力" />
+          </outline>
+          <outline text="2.2.2 正常场景">
+            <outline text="高危安全事件按告警等级、事件类型、资产范围配置推送" />
+            <outline text="异步任务按任务类型、状态、执行结果配置推送" />
+            <outline text="运维与平台异常按故障类型、阈值范围和提醒时机配置推送" />
+            <outline text="账号与角色通知按 XDR 公共字段配置推送" />
+          </outline>
+          <outline text="2.2.3 异常场景">
+            <outline text="业务结果没有资产组信息" />
+            <outline text="业务方输出结果不标准" />
+            <outline text="扩展字段与 XDR 或业务接口字段口径不一致" />
+          </outline>
+          <outline text="2.2.4 约束条件">
+            <outline text="账号类字段优先复用 XDR 公共字段" />
+            <outline text="资产归属判断尽量复用公共能力" />
+          </outline>
+          <outline text="2.2.5 依赖与风险">
+            <outline text="依赖统一资产能力或业务侧归属判断能力" />
+            <outline text="资产组归属查询责任边界和查询时点尚未定" />
+          </outline>
+        </outline>
+        <outline text="2.3 功能需求点3：频率控制与聚合">
+          <outline text="2.3.1 功能描述">
+            <outline text="支持实时推送和按时间窗口聚合推送" />
+            <outline text="高危安全事件支持实时推送和按 X 小时聚合汇总" />
+            <outline text="系统预警支持提前提醒和固定时间提醒" />
+          </outline>
+          <outline text="2.3.2 正常场景">
+            <outline text="高危事件命中实时规则后立即推送" />
+            <outline text="高危事件按 X 小时窗口汇总后统一发送" />
+            <outline text="巡检结果按配置决定实时、延迟或聚合发送" />
+          </outline>
+          <outline text="2.3.3 异常场景">
+            <outline text="低危或高噪音消息误入实时推送" />
+            <outline text="聚合接口缺失或返回格式不符合约定" />
+            <outline text="频率调整后用户不清楚影响范围" />
+          </outline>
+          <outline text="2.3.4 约束条件">
+            <outline text="实时推送必须有规则校验能力" />
+            <outline text="聚合能力由业务模块提供，AES 只负责承接和发送" />
+          </outline>
+          <outline text="2.3.5 依赖与风险">
+            <outline text="依赖业务方提供聚合结果接口" />
+            <outline text="聚合接口字段、窗口定义和冻结口径未完全对齐" />
+          </outline>
+        </outline>
+        <outline text="2.4 功能需求点4：模板、多通道与消息内容">
+          <outline text="2.4.1 功能描述">
+            <outline text="模板由后台统一维护" />
+            <outline text="企业微信、Webhook、邮件使用文案模板" />
+            <outline text="短信发送 templateCode + value" />
+            <outline text="消息支持标题、时间、摘要、上下文和跳转链接" />
+          </outline>
+          <outline text="2.4.2 正常场景">
+            <outline text="按消息类型、通道和租户语言定位模板" />
+            <outline text="实时消息跳转到详情页或配置页" />
+            <outline text="聚合消息展示摘要并提供汇总结果链接" />
+          </outline>
+          <outline text="2.4.3 异常场景">
+            <outline text="模板缺失" />
+            <outline text="模板变量不完整" />
+            <outline text="短信模板参数不合法或供应商不支持" />
+          </outline>
+          <outline text="2.4.4 约束条件">
+            <outline text="模板不是用户配置项" />
+            <outline text="当前阶段短信仅支持单一语言模板" />
+            <outline text="不同场景允许不同上下文字段和跳转方式" />
+          </outline>
+          <outline text="2.4.5 依赖与风险">
+            <outline text="依赖模板管理、短信供应商和语言规范能力" />
+            <outline text="短信多语言、模板缺失回退规则和供应商边界未定" />
+          </outline>
+        </outline>
+        <outline text="2.5 功能需求点5：与 XDR 现有能力协同">
+          <outline text="2.5.1 功能描述">
+            <outline text="某些配置项在 AES 展示和提交，但由 XDR 承接" />
+            <outline text="协同范围包括接收对象选择和账号角色类场景" />
+            <outline text="AES 负责统一入口、参数整合、转发和副本查询" />
+            <outline text="XDR 负责查询、变更、用户信息列表和实际承接能力" />
+          </outline>
+          <outline text="2.5.2 正常场景">
+            <outline text="前端请求 AES，AES 转发 XDR" />
+            <outline text="XDR 成功后，AES 更新本地结果" />
+          </outline>
+          <outline text="2.5.3 异常场景">
+            <outline text="XDR 调用失败，AES 不更新本地生效值" />
+            <outline text="XDR 不支持某筛选字段" />
+            <outline text="用户信息列表接口失败" />
+          </outline>
+          <outline text="2.5.4 约束条件">
+            <outline text="AES 展示和提交字段必须以 XDR 公共接口为准" />
+            <outline text="页面只展示已同步成功到 XDR 的配置" />
+          </outline>
+          <outline text="2.5.5 依赖与风险">
+            <outline text="强依赖 XDR 查询、变更和用户信息列表接口" />
+            <outline text="XDR 公共能力不足会限制 AES 开放范围" />
+          </outline>
+        </outline>
+      </outline>
+      <outline text="3 非功能性需求">
+        <outline text="3.1 性能分析">
+          <outline text="当前阶段以后台配置和治理场景为主" />
+          <outline text="列表量较小时可先不分页" />
+          <outline text="具体响应指标、并发和容量阈值待补充" />
+        </outline>
+        <outline text="3.2 可靠性">
+          <outline text="幂等能力贯穿 AES 执行层和下游通道调用链路" />
+          <outline text="支持有限次重试并进入明确失败状态" />
+          <outline text="识别限流并支持记录、监控和退避/延后" />
+          <outline text="区分发送配置变更和业务结果口径变更" />
+        </outline>
+        <outline text="3.3 可维护性">
+          <outline text="每种消息类型当前只保留一套全局配置" />
+          <outline text="新增消息类型不重建独立页面" />
+          <outline text="模板、通道和语言适配关系保持可扩展" />
+        </outline>
+        <outline text="3.4 开放性">
+          <outline text="AES 提供统一前端配置入口和管理接口" />
+          <outline text="AES 承接业务方标准结果接口或聚合结果接口" />
+          <outline text="AES 对接 XDR 的查询、变更和用户信息列表接口" />
+        </outline>
+        <outline text="3.5 安全性">
+          <outline text="至少区分查看和修改两类权限" />
+          <outline text="配置修改行为纳入审计" />
+          <outline text="配置跳转链接必须在登录和鉴权后执行" />
+        </outline>
+        <outline text="3.6 其他">
+          <outline text="3.6.1 可观测与可追溯">
+            <outline text="记录配置变更、发送结果和失败原因" />
+            <outline text="统计各消息类型和通道的发送量、成功率、失败率" />
+            <outline text="监控下游调用异常和聚合积压" />
+            <outline text="暴露 Prometheus 指标并结合日志定位问题" />
+          </outline>
+          <outline text="3.6.2 兼容性">
+            <outline text="至少兼容企业微信、Webhook、邮件三类通道" />
+            <outline text="不同通道允许适配不同内容格式" />
+            <outline text="系统兼容平台现有多语言口径" />
+            <outline text="短信是否支持多语言按通道能力处理" />
+          </outline>
+        </outline>
+      </outline>
+      <outline text="4 当前需求边界">
+        <outline text="4.1 本次纳入">
+          <outline text="统一的通知配置入口" />
+          <outline text="基于消息类型的列表、详情和编辑页" />
+          <outline text="基础配置与场景扩展配置" />
+          <outline text="默认配置、租户覆盖与最终生效视图" />
+          <outline text="频率控制与聚合配置" />
+          <outline text="消息详情跳转和配置跳转" />
+          <outline text="模板映射与语言适配规则" />
+          <outline text="配置生效规则" />
+          <outline text="幂等、有限重试和限流处理" />
+          <outline text="配置变更审计与发送结果记录" />
+          <outline text="监控指标、日志和基础告警" />
+          <outline text="租户粒度灰度验证能力" />
+        </outline>
+        <outline text="4.2 明确不负责">
+          <outline text="不建设高复用、且与底座高度一致的通用能力" />
+          <outline text="登录、用户、租户、授权、权限和底层通知通道由 XDR 提供" />
+          <outline text="AES 只建设通知域配置和治理能力" />
+        </outline>
+      </outline>
+      <outline text="5 待明确项">
+        <outline text="企业微信、Webhook、邮件三类通道在当前阶段是否全部上线" />
+        <outline text="短信通道的 templateCode + value 结构、参数校验规则和供应商对接边界" />
+        <outline text="短信当前是否只支持单一语言，以及后续是否需要支持海外短信和多语言模板" />
+        <outline text="资产范围筛选涉及资产组时，由业务方判断归属还是由 AES 反查判断" />
+        <outline text="如果由 AES 做资产组归属判断，由哪一层提供统一查询能力，以及在何阶段判断" />
+        <outline text="告警类场景是否采用消息中心主动调用业务侧标准接口拿结果的模式" />
+        <outline text="巡检类场景是否统一采用业务侧先产结果、消息中心承接后发送的模式" />
+        <outline text="高危威胁与安全事件按 X 小时聚合汇总时的标准接口字段和返回格式" />
+        <outline text="重试次数、重试间隔和人工介入方式如何设定" />
+        <outline text="配置缓存的生效时延和是否需要手动刷新能力" />
+        <outline text="Prometheus 指标和告警阈值" />
+      </outline>
+    </outline>
+  </body>
+</opml>
