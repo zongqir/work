@@ -1,8 +1,10 @@
-# Aggregate Registry Demo
+# Aggregate Contract Demo
 
-这个版本演示的是 `message_type + biz_vars + system_vars + effective policy`：
+这个版本演示的是生产级聚合契约：
 
-- 业务聚合结果返回 `message_type + biz_vars`
+- AES 定义聚合请求和返回协议
+- 业务方实现 `Aggregator` 接口
+- 业务结果返回 `message_type + biz_vars`
 - 平台根据请求上下文补 `system_vars`，例如 `window_label`
 - 渲染模板时统一包装成 `.biz` 和 `.sys`
 - 渠道不由业务结果定义，而是由生效策略决定
@@ -73,6 +75,21 @@
 - `email` 和 `webhook` 走本地模板资产
 - `sms` 直接使用 `templateCode + kv`
 
+生产级契约入口见 [contract.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/contract.go:1)：
+
+- `Aggregator`：业务方实现的聚合接口
+- `ErrInvalidRequest`：请求非法
+- `ErrUnsupportedConfig`：配置不支持
+- `ErrTemporaryFailure`：临时失败，可由调用方决定是否重试
+
+正式业务实现目录放在 `aggregators/`：
+
+- 每个 `message_type` 一个子目录
+- 子目录里放正式实现代码
+- 现在先给了一个样例：[aggregators/xdr_risk_digest](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/aggregators/xdr_risk_digest)
+- 这个样例故意只演示“如何实现接口并返回 `biz_vars`”
+- 不展开内部 repo、query、source 这些实现细节，避免把注意力带偏
+
 这种做法下：
 
 - 上游协议保持简单，不需要传 `biz.xxx`
@@ -83,6 +100,11 @@
 
 ```text
 code/aggregate_registry_demo/
+  aggregators/
+    xdr_risk_digest/
+      aggregator.go
+      aggregator_test.go
+  contract.go
   render.go
   sample_request.json
   sample_result.json
@@ -123,17 +145,4 @@ preview, err := preview.FromFiles(
 
 ```go
 data, err := preview.Marshal(preview)
-```
-
-模板预览工具：
-
-```powershell
-cd .\code\aggregate_registry_demo
-go run . -request sample_request.json -result sample_result.json -policy sample_policy.json -templates templates
-```
-
-如果要先看最终注入模板的 `.biz / .sys` 上下文，可以加：
-
-```powershell
-go run . -show-context
 ```

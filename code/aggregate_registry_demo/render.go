@@ -1,4 +1,4 @@
-package aggregatepreview
+package aggregate
 
 import (
 	"bytes"
