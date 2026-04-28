@@ -2,7 +2,10 @@ package aggregate
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"sync"
+	"time"
 )
 
 // MessagePublisher 由平台提供，负责把命中的实时结果发布出去。
@@ -55,4 +58,93 @@ func (d *Dispatcher) HandleRealtime(ctx context.Context, handler Handler, req *R
 	}
 
 	return decision, nil
+}
+
+type TenantConfigCache struct {
+	TTL time.Duration
+
+	now func() time.Time
+	mu  sync.RWMutex
+
+	items     map[string]json.RawMessage
+	expiresAt time.Time
+}
+
+func (c *TenantConfigCache) Expired() bool {
+	if c == nil {
+		return true
+	}
+
+	ttl := c.TTL
+	if ttl <= 0 {
+		ttl = 5 * time.Minute
+	}
+
+	nowFn := c.now
+	if nowFn == nil {
+		nowFn = time.Now
+	}
+	now := nowFn()
+
+	c.mu.RLock()
+	expired := c.items == nil || !now.Before(c.expiresAt)
+	c.mu.RUnlock()
+	return expired
+}
+
+func (c *TenantConfigCache) SetAll(configs map[string]json.RawMessage) {
+	if c == nil {
+		return
+	}
+
+	ttl := c.TTL
+	if ttl <= 0 {
+		ttl = 5 * time.Minute
+	}
+
+	nowFn := c.now
+	if nowFn == nil {
+		nowFn = time.Now
+	}
+
+	c.mu.Lock()
+	c.items = configs
+	c.expiresAt = nowFn().Add(ttl)
+	c.mu.Unlock()
+}
+
+func (c *TenantConfigCache) Get(tenantID string) json.RawMessage {
+	if c == nil {
+		return nil
+	}
+
+	c.mu.RLock()
+	config := c.items[tenantID]
+	c.mu.RUnlock()
+	return config
+}
+
+func (c *TenantConfigCache) Pick(tenantIDs []string) map[string]json.RawMessage {
+	if c == nil {
+		return nil
+	}
+
+	c.mu.RLock()
+	configs := c.items
+	c.mu.RUnlock()
+
+	if len(configs) == 0 || len(tenantIDs) == 0 {
+		return nil
+	}
+
+	selected := make(map[string]json.RawMessage, len(tenantIDs))
+	for _, tenantID := range tenantIDs {
+		if config := configs[tenantID]; config != nil {
+			selected[tenantID] = config
+		}
+	}
+	if len(selected) == 0 {
+		return nil
+	}
+	return selected
 }

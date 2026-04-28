@@ -85,7 +85,7 @@
 - `BizAggregateRequest`：聚合请求
 - `RealtimeRequest`：实时请求
 - `RealtimeDecision`：实时判断结果
-- `DispatchMessage`：实时命中后要分发的消息载体
+- `DispatchMessage`：最终要分发的消息载体
 - `ErrInvalidRequest`：请求非法
 - `ErrUnsupportedConfig`：配置不支持
 - `ErrTemporaryFailure`：临时失败，可由调用方决定是否重试
@@ -102,12 +102,18 @@
 
 实时场景口径：
 
-- AES 调用 `Dispatcher.HandleRealtime(...)`
-- 业务方实现 `Handler` 的 `Evaluate(...)`
-- AES 把 `filter_query json + event_body json` 交给业务方
-- 业务方自己筛选
-- 命中时返回 `Matched=true + biz_vars`
-- `Dispatcher` 统一负责把结果发布出去
+- 实时和聚合都会先拿到“本次要处理的租户列表”
+- 再从缓存里的“全量租户配置”中取出这些租户对应的配置
+- 然后再进入各自处理逻辑
+
+缓存口径：
+
+- `TenantConfigCache`：缓存全量租户配置
+- 默认过期时间 5 分钟
+- 过期了就重新拉取
+- 拉取接口先不在这里定，后面再接
+- 当前只提供：
+  `Expired()`、`SetAll(...)`、`Get(...)`、`Pick(...)`
 
 正式业务实现统一放在 `handlers/`：
 
