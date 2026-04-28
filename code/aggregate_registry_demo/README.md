@@ -1,11 +1,11 @@
 # Aggregate Registry Demo
 
-这个版本演示的是 `message_type + payload + registry + effective policy`：
+这个版本演示的是 `message_type + template_vars + effective policy`：
 
-- 业务聚合结果只返回 `message_type + payload`
-- 平台通过 `registry` 找到该消息对应的强类型结构体
+- 业务聚合结果直接返回 `message_type + template_vars`
+- 平台不再解码业务 payload，也不再注册消息结构体
 - 渠道不由业务结果定义，而是由生效策略决定
-- 邮件、webhook、短信分别产出各自需要的结果格式
+- 邮件、webhook、短信围绕同一份 `template_vars` 工作
 
 这里刻意把输入和输出分开：
 
@@ -13,13 +13,11 @@
 - 聚合结果：`sample_result.json`
 - 生效策略：`sample_policy.json`
 
-输入侧允许更灵活：
+输入侧只保留平台自己需要的上下文，例如租户标识和查询参数：
 
 ```json
 {
   "tenant_id": "t_1001",
-  "window_start": "2026-04-28T10:00:00Z",
-  "window_end": "2026-04-28T11:00:00Z",
   "config_body": {
     "severity": ["high", "critical"],
     "sample_limit": 3
@@ -27,19 +25,20 @@
 }
 ```
 
-输出侧要求强约束，必须符合平台定义的返回结构：
+业务聚合结果示例：
 
 ```json
 {
   "message_type": "xdr_risk_digest",
-  "payload": {
-    "total_count": 23,
-    "category_count": 3,
+  "template_vars": {
+    "window_label": "过去1小时",
+    "total_count": "23",
+    "category_count": "3",
     "examples": [
       {
         "object_name": "host-a",
         "risk_type": "暴力破解",
-        "event_count": 6
+        "event_count": "6"
       }
     ]
   }
@@ -69,37 +68,27 @@
 }
 ```
 
-注册表定义在 [registry.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/messages/registry.go)：
+模板只引用 `template_vars`，例如：
 
-```go
-var bizAggregateResultRegistry = map[string]BizAggregateResultMeta{
-    "xdr_risk_digest": {
-        NewPayload: func() any {
-            return &XdrRiskDigest{}
-        },
-        BuildSMSParams: func(windowLabel string, payload any) (map[string]string, error) {
-            ...
-        },
-    },
-}
+```tmpl
+{{.window_label}}风险摘要：{{.total_count}}条高危事件
 ```
 
 当前职责拆分：
 
-- `message_type + payload` 由业务聚合侧负责
+- `message_type + template_vars` 由业务聚合侧负责
 - `tenant_id + message_type -> channels` 由通知配置侧负责
 - `email` 和 `webhook` 走本地模板资产
-- `sms` 走供应商 `templateCode + kv`
+- `sms` 直接使用 `templateCode + kv`
 
-新增一种消息时，需要：
+新增一种消息时，通常只需要：
 
-1. 新增 payload 结构体
-2. 在 `registry` 注册解码逻辑
-3. 如果支持短信，补充短信参数映射
-4. 按需新增邮件和 webhook 模板资产
-5. 在配置侧新增渠道策略
+1. 约定新的 `message_type`
+2. 定义该 `message_type` 允许出现的 `template_vars`
+3. 按需新增邮件和 webhook 模板资产
+4. 在配置侧新增渠道策略
 
-不需要改统一顶层结构。
+不需要新增 payload 结构体，也不需要注册解码逻辑。
 
 当前目录结构：
 
@@ -112,8 +101,6 @@ code/aggregate_registry_demo/
   sample_policy.json
   messages/
     envelope.go
-    registry.go
-    xdr_risk_digest.go
   templates/
     email/
       xdr_risk_digest_default.subject.tmpl

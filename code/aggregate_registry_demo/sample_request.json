@@ -1,7 +1,5 @@
 {
   "tenant_id": "t_1001",
-  "window_start": "2026-04-28T10:00:00Z",
-  "window_end": "2026-04-28T11:00:00Z",
   "config_body": {
     "severity": ["high", "critical"],
     "sample_limit": 3,

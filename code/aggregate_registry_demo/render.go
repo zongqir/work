@@ -8,18 +8,15 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
-	"time"
 
 	"notes/code/aggregate_registry_demo/messages"
 )
 
 // BizAggregateRequest 是发给业务方聚合接口的请求。
-// 这里故意保留 config_body 这类 JSON 字段，表示请求侧可以更灵活。
+// 这里只保留平台自己需要的上下文，例如 tenant_id 和查询条件。
 type BizAggregateRequest struct {
-	TenantID    string          `json:"tenant_id"`
-	WindowStart time.Time       `json:"window_start"`
-	WindowEnd   time.Time       `json:"window_end"`
-	ConfigBody  json.RawMessage `json:"config_body"`
+	TenantID   string          `json:"tenant_id"`
+	ConfigBody json.RawMessage `json:"config_body"`
 }
 
 // EffectivePolicy 是通知执行层根据 tenant_id + message_type 查到的生效策略。
@@ -36,8 +33,7 @@ type ChannelPolicy struct {
 
 // MessageRenderInput 是模板最终拿到的输入。
 type MessageRenderInput struct {
-	WindowLabel string
-	Payload     any
+	Vars messages.TemplateVars
 }
 
 type RenderedChannelMessage struct {
@@ -100,27 +96,16 @@ func loadEffectivePolicy(path string) (*EffectivePolicy, error) {
 	return &policy, nil
 }
 
-func buildMessageRenderInput(req *BizAggregateRequest, result *messages.BizAggregateResult) (messages.BizAggregateResultMeta, MessageRenderInput, error) {
+func buildMessageRenderInput(result *messages.BizAggregateResult) (MessageRenderInput, error) {
 	if result.MessageType == "" {
-		return messages.BizAggregateResultMeta{}, MessageRenderInput{}, fmt.Errorf("message_type is required")
+		return MessageRenderInput{}, fmt.Errorf("message_type is required")
 	}
-	if len(result.Payload) == 0 {
-		return messages.BizAggregateResultMeta{}, MessageRenderInput{}, fmt.Errorf("payload is required")
-	}
-
-	meta, ok := messages.LookupBizAggregateResultMeta(result.MessageType)
-	if !ok {
-		return messages.BizAggregateResultMeta{}, MessageRenderInput{}, fmt.Errorf("unsupported message_type: %s", result.MessageType)
+	if len(result.TemplateVars) == 0 {
+		return MessageRenderInput{}, fmt.Errorf("template_vars is required")
 	}
 
-	payload := meta.NewPayload()
-	if err := json.Unmarshal(result.Payload, payload); err != nil {
-		return messages.BizAggregateResultMeta{}, MessageRenderInput{}, fmt.Errorf("decode payload failed: %w", err)
-	}
-
-	return meta, MessageRenderInput{
-		WindowLabel: formatWindowLabel(req.WindowStart, req.WindowEnd),
-		Payload:     payload,
+	return MessageRenderInput{
+		Vars: result.TemplateVars,
 	}, nil
 }
 
@@ -132,14 +117,14 @@ func renderByPolicy(req *BizAggregateRequest, result *messages.BizAggregateResul
 		return nil, fmt.Errorf("policy message_type mismatch: %s", policy.MessageType)
 	}
 
-	meta, input, err := buildMessageRenderInput(req, result)
+	input, err := buildMessageRenderInput(result)
 	if err != nil {
 		return nil, err
 	}
 
 	renderedMessages := make([]RenderedChannelMessage, 0, len(policy.Channels))
 	for _, channelPolicy := range policy.Channels {
-		rendered, err := renderChannel(meta, input, channelPolicy, templateRoot)
+		rendered, err := renderChannel(input, channelPolicy, templateRoot)
 		if err != nil {
 			return nil, err
 		}
@@ -149,14 +134,14 @@ func renderByPolicy(req *BizAggregateRequest, result *messages.BizAggregateResul
 	return renderedMessages, nil
 }
 
-func renderChannel(meta messages.BizAggregateResultMeta, input MessageRenderInput, policy ChannelPolicy, templateRoot string) (RenderedChannelMessage, error) {
+func renderChannel(input MessageRenderInput, policy ChannelPolicy, templateRoot string) (RenderedChannelMessage, error) {
 	switch policy.Channel {
 	case "email":
-		subject, err := renderTextTemplate(filepath.Join(templateRoot, "email", policy.TemplateCode+".subject.tmpl"), input)
+		subject, err := renderTextTemplate(filepath.Join(templateRoot, "email", policy.TemplateCode+".subject.tmpl"), input.Vars)
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
-		body, err := renderTextTemplate(filepath.Join(templateRoot, "email", policy.TemplateCode+".body.tmpl"), input)
+		body, err := renderTextTemplate(filepath.Join(templateRoot, "email", policy.TemplateCode+".body.tmpl"), input.Vars)
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
@@ -168,7 +153,7 @@ func renderChannel(meta messages.BizAggregateResultMeta, input MessageRenderInpu
 			},
 		}, nil
 	case "webhook":
-		content, err := renderTextTemplate(filepath.Join(templateRoot, "webhook", policy.TemplateCode+".tmpl"), input)
+		content, err := renderTextTemplate(filepath.Join(templateRoot, "webhook", policy.TemplateCode+".tmpl"), input.Vars)
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
@@ -179,23 +164,55 @@ func renderChannel(meta messages.BizAggregateResultMeta, input MessageRenderInpu
 			},
 		}, nil
 	case "sms":
-		if meta.BuildSMSParams == nil {
-			return RenderedChannelMessage{}, fmt.Errorf("sms renderer is not defined for message_type")
-		}
-		params, err := meta.BuildSMSParams(input.WindowLabel, input.Payload)
-		if err != nil {
-			return RenderedChannelMessage{}, fmt.Errorf("build sms params failed: %w", err)
-		}
 		return RenderedChannelMessage{
 			Channel: "sms",
 			SMS: &RenderedSMS{
 				TemplateCode: policy.TemplateCode,
-				Params:       params,
+				Params:       buildSMSParams(input.Vars),
 			},
 		}, nil
 	default:
 		return RenderedChannelMessage{}, fmt.Errorf("unsupported channel: %s", policy.Channel)
 	}
+}
+
+func buildSMSParams(vars messages.TemplateVars) map[string]string {
+	params := make(map[string]string)
+	for key, value := range vars {
+		switch v := value.(type) {
+		case string:
+			params[key] = v
+		case fmt.Stringer:
+			params[key] = v.String()
+		case int:
+			params[key] = fmt.Sprintf("%d", v)
+		case int8:
+			params[key] = fmt.Sprintf("%d", v)
+		case int16:
+			params[key] = fmt.Sprintf("%d", v)
+		case int32:
+			params[key] = fmt.Sprintf("%d", v)
+		case int64:
+			params[key] = fmt.Sprintf("%d", v)
+		case uint:
+			params[key] = fmt.Sprintf("%d", v)
+		case uint8:
+			params[key] = fmt.Sprintf("%d", v)
+		case uint16:
+			params[key] = fmt.Sprintf("%d", v)
+		case uint32:
+			params[key] = fmt.Sprintf("%d", v)
+		case uint64:
+			params[key] = fmt.Sprintf("%d", v)
+		case float32:
+			params[key] = fmt.Sprintf("%g", v)
+		case float64:
+			params[key] = fmt.Sprintf("%g", v)
+		case bool:
+			params[key] = fmt.Sprintf("%t", v)
+		}
+	}
+	return params
 }
 
 func renderTextTemplate(templatePath string, input any) (string, error) {
@@ -217,17 +234,4 @@ func renderTextTemplate(templatePath string, input any) (string, error) {
 	}
 
 	return strings.TrimRight(buf.String(), "\r\n"), nil
-}
-
-// 统一生成窗口文案。
-func formatWindowLabel(start, end time.Time) string {
-	duration := end.Sub(start)
-	switch duration {
-	case time.Hour:
-		return "过去1小时"
-	case 24 * time.Hour:
-		return "过去1天"
-	default:
-		return fmt.Sprintf("%s - %s", start.Format("2006-01-02 15:04"), end.Format("15:04"))
-	}
 }
