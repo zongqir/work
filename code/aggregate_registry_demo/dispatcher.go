@@ -60,7 +60,7 @@ func (d *Dispatcher) HandleRealtime(ctx context.Context, handler Handler, req *R
 	return decision, nil
 }
 
-type TenantConfigCache struct {
+type configCache struct {
 	TTL time.Duration
 
 	now func() time.Time
@@ -70,14 +70,15 @@ type TenantConfigCache struct {
 	expiresAt time.Time
 }
 
-func (c *TenantConfigCache) Expired() bool {
+func (c *configCache) pick(ctx context.Context, tenantIDs []string, loadAll func(context.Context) (map[string]json.RawMessage, error)) (map[string]json.RawMessage, error) {
 	if c == nil {
-		return true
+		return nil, nil
 	}
-
-	ttl := c.TTL
-	if ttl <= 0 {
-		ttl = 5 * time.Minute
+	if len(tenantIDs) == 0 {
+		return nil, nil
+	}
+	if loadAll == nil {
+		return nil, fmt.Errorf("%w: load_all is required", ErrInvalidRequest)
 	}
 
 	nowFn := c.now
@@ -87,64 +88,36 @@ func (c *TenantConfigCache) Expired() bool {
 	now := nowFn()
 
 	c.mu.RLock()
-	expired := c.items == nil || !now.Before(c.expiresAt)
-	c.mu.RUnlock()
-	return expired
-}
-
-func (c *TenantConfigCache) SetAll(configs map[string]json.RawMessage) {
-	if c == nil {
-		return
-	}
-
-	ttl := c.TTL
-	if ttl <= 0 {
-		ttl = 5 * time.Minute
-	}
-
-	nowFn := c.now
-	if nowFn == nil {
-		nowFn = time.Now
-	}
-
-	c.mu.Lock()
-	c.items = configs
-	c.expiresAt = nowFn().Add(ttl)
-	c.mu.Unlock()
-}
-
-func (c *TenantConfigCache) Get(tenantID string) json.RawMessage {
-	if c == nil {
-		return nil
-	}
-
-	c.mu.RLock()
-	config := c.items[tenantID]
-	c.mu.RUnlock()
-	return config
-}
-
-func (c *TenantConfigCache) Pick(tenantIDs []string) map[string]json.RawMessage {
-	if c == nil {
-		return nil
-	}
-
-	c.mu.RLock()
-	configs := c.items
+	items := c.items
+	expiresAt := c.expiresAt
 	c.mu.RUnlock()
 
-	if len(configs) == 0 || len(tenantIDs) == 0 {
-		return nil
+	if items == nil || !now.Before(expiresAt) {
+		all, err := loadAll(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		ttl := c.TTL
+		if ttl <= 0 {
+			ttl = 5 * time.Minute
+		}
+
+		c.mu.Lock()
+		c.items = all
+		c.expiresAt = nowFn().Add(ttl)
+		items = c.items
+		c.mu.Unlock()
 	}
 
 	selected := make(map[string]json.RawMessage, len(tenantIDs))
 	for _, tenantID := range tenantIDs {
-		if config := configs[tenantID]; config != nil {
+		if config := items[tenantID]; config != nil {
 			selected[tenantID] = config
 		}
 	}
 	if len(selected) == 0 {
-		return nil
+		return nil, nil
 	}
-	return selected
+	return selected, nil
 }
