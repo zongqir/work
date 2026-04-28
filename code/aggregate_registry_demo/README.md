@@ -1,16 +1,17 @@
 # Aggregate Registry Demo
 
-这个版本演示的是 `message_type + payload + registry`：
+这个版本演示的是 `message_type + payload + registry + effective policy`：
 
-- 输入是请求 JSON
-- 顶层结果固定成 `message_type` + `payload`
-- 平台通过 `registry` 找到该消息对应的结构体和模板目录
-- 模板仍然按强类型字段渲染
+- 业务聚合结果只返回 `message_type + payload`
+- 平台通过 `registry` 找到该消息对应的强类型结构体
+- 渠道不由业务结果定义，而是由生效策略决定
+- 邮件、webhook、短信分别产出各自需要的结果格式
 
 这里刻意把输入和输出分开：
 
 - 输入：`sample_request.json`
-- 输出：`sample_result.json`
+- 聚合结果：`sample_result.json`
+- 生效策略：`sample_policy.json`
 
 输入侧允许更灵活：
 
@@ -27,8 +28,6 @@
 ```
 
 输出侧要求强约束，必须符合平台定义的返回结构：
-
-当前示例结构：
 
 ```json
 {
@@ -47,6 +46,29 @@
 }
 ```
 
+生效策略示例：
+
+```json
+{
+  "tenant_id": "t_1001",
+  "message_type": "xdr_risk_digest",
+  "channels": [
+    {
+      "channel": "email",
+      "template_code": "xdr_risk_digest_default"
+    },
+    {
+      "channel": "webhook",
+      "template_code": "xdr_risk_digest_default"
+    },
+    {
+      "channel": "sms",
+      "template_code": "SMS_001"
+    }
+  ]
+}
+```
+
 注册表定义在 [registry.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/messages/registry.go)：
 
 ```go
@@ -55,15 +77,27 @@ var bizAggregateResultRegistry = map[string]BizAggregateResultMeta{
         NewPayload: func() any {
             return &XdrRiskDigest{}
         },
+        BuildSMSParams: func(windowLabel string, payload any) (map[string]string, error) {
+            ...
+        },
     },
 }
 ```
 
+当前职责拆分：
+
+- `message_type + payload` 由业务聚合侧负责
+- `tenant_id + message_type -> channels` 由通知配置侧负责
+- `email` 和 `webhook` 走本地模板资产
+- `sms` 走供应商 `templateCode + kv`
+
 新增一种消息时，需要：
 
 1. 新增 payload 结构体
-2. 在 `registry` 注册一次
-3. 新增模板目录
+2. 在 `registry` 注册解码逻辑
+3. 如果支持短信，补充短信参数映射
+4. 按需新增邮件和 webhook 模板资产
+5. 在配置侧新增渠道策略
 
 不需要改统一顶层结构。
 
@@ -73,21 +107,24 @@ var bizAggregateResultRegistry = map[string]BizAggregateResultMeta{
 code/aggregate_registry_demo/
   main.go
   render.go
+  sample_request.json
+  sample_result.json
+  sample_policy.json
   messages/
     envelope.go
     registry.go
     xdr_risk_digest.go
-  sample_request.json
-  sample_result.json
   templates/
-    xdr_risk_digest/
-      email.tmpl
-      wecom.tmpl
-      sms.tmpl
+    email/
+      xdr_risk_digest_default.subject.tmpl
+      xdr_risk_digest_default.body.tmpl
+    webhook/
+      xdr_risk_digest_default.tmpl
 ```
 
 运行方式：
 
 ```powershell
-go run .\code\aggregate_registry_demo\main.go
+cd .\code\aggregate_registry_demo
+go run .
 ```

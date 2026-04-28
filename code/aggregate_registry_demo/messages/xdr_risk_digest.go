@@ -1,4 +1,4 @@
-package main
+package messages
 
 // XdrRiskDigest 是 xdr_risk_digest 这类消息对应的返回结构。
 type XdrRiskDigest struct {

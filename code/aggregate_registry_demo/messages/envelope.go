@@ -1,4 +1,4 @@
-package main
+package messages
 
 import "encoding/json"
 
@@ -11,5 +11,6 @@ type BizAggregateResult struct {
 
 // BizAggregateResultMeta 描述某一种业务聚合结果该怎么解码。
 type BizAggregateResultMeta struct {
-	NewPayload func() any
+	NewPayload     func() any
+	BuildSMSParams func(windowLabel string, payload any) (map[string]string, error)
 }
