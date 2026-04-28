@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"notes/code/aggregate_registry_demo/messages"
@@ -15,6 +17,8 @@ var (
 	ErrTemporaryFailure   = errors.New("temporary aggregate failure")
 	ErrAggregatorNotFound = errors.New("aggregator not found")
 )
+
+var registeredHandlers = map[string]Handler{}
 
 // BizAggregateRequest 是发给业务方聚合接口的请求。
 // 这里只保留平台自己需要的上下文，例如 tenant_id 和查询条件。
@@ -50,4 +54,33 @@ type Handler interface {
 	MustRegister()
 	Aggregate(ctx context.Context, req *BizAggregateRequest) (*messages.BizAggregateResult, error)
 	Evaluate(ctx context.Context, req *RealtimeRequest) (*RealtimeDecision, error)
+}
+
+func MustRegister(handler Handler) {
+	if handler == nil {
+		panic(fmt.Errorf("%w: handler is required", ErrInvalidRequest))
+	}
+
+	messageType := strings.TrimSpace(handler.MessageType())
+	if messageType == "" {
+		panic(fmt.Errorf("%w: message_type is required", ErrInvalidRequest))
+	}
+	if _, exists := registeredHandlers[messageType]; exists {
+		panic(fmt.Errorf("%w: duplicate handler for %s", ErrInvalidRequest, messageType))
+	}
+
+	registeredHandlers[messageType] = handler
+}
+
+func Resolve(messageType string) (Handler, error) {
+	messageType = strings.TrimSpace(messageType)
+	if messageType == "" {
+		return nil, fmt.Errorf("%w: message_type is required", ErrInvalidRequest)
+	}
+
+	handler, ok := registeredHandlers[messageType]
+	if !ok {
+		return nil, fmt.Errorf("%w: %s", ErrAggregatorNotFound, messageType)
+	}
+	return handler, nil
 }

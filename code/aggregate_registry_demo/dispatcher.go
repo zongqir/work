@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -16,9 +17,68 @@ type MessagePublisher interface {
 
 type Dispatcher struct {
 	Publisher MessagePublisher
+	LoadAll   func(ctx context.Context) (map[string]json.RawMessage, error)
+
+	cache configCache
 }
 
-func (d *Dispatcher) Dispatch(ctx context.Context, msg *DispatchMessage) error {
+func (d *Dispatcher) Send(ctx context.Context, tenantID, messageType string, eventBody json.RawMessage) error {
+	if d == nil || d.Publisher == nil {
+		return fmt.Errorf("%w: message publisher is required", ErrInvalidRequest)
+	}
+	if d.LoadAll == nil {
+		return fmt.Errorf("%w: load_all is required", ErrInvalidRequest)
+	}
+
+	tenantID = strings.TrimSpace(tenantID)
+	if tenantID == "" {
+		return fmt.Errorf("%w: tenant_id is required", ErrInvalidRequest)
+	}
+	messageType = strings.TrimSpace(messageType)
+	if messageType == "" {
+		return fmt.Errorf("%w: message_type is required", ErrInvalidRequest)
+	}
+
+	handler, err := Resolve(messageType)
+	if err != nil {
+		return err
+	}
+
+	configs, err := d.cache.pick(ctx, []string{tenantID}, d.LoadAll)
+	if err != nil {
+		return err
+	}
+	configBody := configs[tenantID]
+	if len(configBody) == 0 {
+		return nil
+	}
+
+	var config struct {
+		Enabled     bool            `json:"enabled"`
+		FilterQuery json.RawMessage `json:"filter_query"`
+	}
+	if err := json.Unmarshal(configBody, &config); err != nil {
+		return err
+	}
+	if !config.Enabled {
+		return nil
+	}
+
+	decision, err := d.sendWithHandler(ctx, handler, &RealtimeRequest{
+		TenantID:    tenantID,
+		FilterQuery: config.FilterQuery,
+		EventBody:   eventBody,
+	})
+	if err != nil {
+		return err
+	}
+	if decision == nil {
+		return nil
+	}
+	return nil
+}
+
+func (d *Dispatcher) dispatch(ctx context.Context, msg *DispatchMessage) error {
 	if d == nil || d.Publisher == nil {
 		return fmt.Errorf("%w: message publisher is required", ErrInvalidRequest)
 	}
@@ -29,7 +89,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, msg *DispatchMessage) error {
 	return d.Publisher.Publish(ctx, msg)
 }
 
-func (d *Dispatcher) HandleRealtime(ctx context.Context, handler Handler, req *RealtimeRequest) (*RealtimeDecision, error) {
+func (d *Dispatcher) sendWithHandler(ctx context.Context, handler Handler, req *RealtimeRequest) (*RealtimeDecision, error) {
 	if handler == nil {
 		return nil, fmt.Errorf("%w: handler is required", ErrInvalidRequest)
 	}
@@ -48,7 +108,7 @@ func (d *Dispatcher) HandleRealtime(ctx context.Context, handler Handler, req *R
 		return decision, nil
 	}
 
-	if err := d.Dispatch(ctx, &DispatchMessage{
+	if err := d.dispatch(ctx, &DispatchMessage{
 		TenantID:    req.TenantID,
 		MessageType: handler.MessageType(),
 		BizVars:     decision.BizVars,
@@ -61,13 +121,15 @@ func (d *Dispatcher) HandleRealtime(ctx context.Context, handler Handler, req *R
 }
 
 type configCache struct {
-	TTL time.Duration
+	TTL      time.Duration
+	MaxStale time.Duration
 
 	now func() time.Time
 	mu  sync.RWMutex
 
-	items     map[string]json.RawMessage
-	expiresAt time.Time
+	items      map[string]json.RawMessage
+	loadedAt   time.Time
+	refreshing bool
 }
 
 func (c *configCache) pick(ctx context.Context, tenantIDs []string, loadAll func(context.Context) (map[string]json.RawMessage, error)) (map[string]json.RawMessage, error) {
@@ -89,23 +151,46 @@ func (c *configCache) pick(ctx context.Context, tenantIDs []string, loadAll func
 
 	c.mu.RLock()
 	items := c.items
-	expiresAt := c.expiresAt
+	loadedAt := c.loadedAt
+	refreshing := c.refreshing
 	c.mu.RUnlock()
 
-	if items == nil || !now.Before(expiresAt) {
+	ttl := c.TTL
+	if ttl <= 0 {
+		ttl = 5 * time.Minute
+	}
+	maxStale := c.MaxStale
+	if maxStale <= 0 {
+		maxStale = 30 * time.Minute
+	}
+
+	age := now.Sub(loadedAt)
+	if items == nil || loadedAt.IsZero() || age >= maxStale {
 		all, err := loadAll(ctx)
 		if err != nil {
 			return nil, err
 		}
-
-		ttl := c.TTL
-		if ttl <= 0 {
-			ttl = 5 * time.Minute
-		}
-
 		c.mu.Lock()
 		c.items = all
-		c.expiresAt = nowFn().Add(ttl)
+		c.loadedAt = nowFn()
+		c.refreshing = false
+		items = c.items
+		c.mu.Unlock()
+	} else if age >= ttl && !refreshing {
+		c.mu.Lock()
+		if !c.refreshing {
+			c.refreshing = true
+			go func() {
+				all, err := loadAll(context.Background())
+				c.mu.Lock()
+				defer c.mu.Unlock()
+				if err == nil {
+					c.items = all
+					c.loadedAt = nowFn()
+				}
+				c.refreshing = false
+			}()
+		}
 		items = c.items
 		c.mu.Unlock()
 	}

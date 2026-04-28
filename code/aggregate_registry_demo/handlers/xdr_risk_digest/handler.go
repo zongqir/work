@@ -4,7 +4,6 @@ import (
 	"context"
 
 	core "notes/code/aggregate_registry_demo"
-	"notes/code/aggregate_registry_demo/handlers"
 	"notes/code/aggregate_registry_demo/messages"
 )
 
@@ -21,7 +20,7 @@ func New() *Handler {
 }
 
 func (h *Handler) MustRegister() {
-	handlers.MustRegister(h)
+	core.MustRegister(h)
 }
 
 func (h *Handler) MessageType() string {

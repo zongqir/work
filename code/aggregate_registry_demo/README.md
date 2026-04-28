@@ -96,16 +96,20 @@
 分发口径：
 
 - AES 提供 `Dispatcher`
-- `Dispatcher.Dispatch(...)` 是统一发布能力
+- 对外只提供一个能力：`Dispatcher.Send(...)`
+- 传入 `tenant_id + message_type + event_body`
+- 平台根据 `message_type` 找到对应业务实现
 - 默认发布口径可以是 MQ，不绑定数据库
-- 聚合和实时最后都归一到 `DispatchMessage`
 
 实时场景口径：
 
-- 实时和聚合都会先拿到“本次要处理的租户列表”
-- 再从“全量租户配置缓存”里取这些租户对应的配置
-- 缓存拿不到时，直接重新拉全量
-- 然后再进入各自处理逻辑
+- 先从缓存里取这个租户对应的配置
+- 缓存超过 5 分钟时，异步刷新全量配置
+- 缓存超过 30 分钟时，视为缓存不存在，直接同步拉全量配置
+- 拿到本租户配置后，先判断是否开启
+- 没开启就直接结束
+- 开启后执行业务方实现的实时方法
+- 命中并拿到 vars 后，再发出去
 
 正式业务实现统一放在 `handlers/`：
 
@@ -113,7 +117,7 @@
 - 每个子目录只有一个 `handler.go`
 - 一个 `Handler` 同时实现：
   `MessageType()`、`MustRegister()`、`Aggregate(...)`、`Evaluate(...)`
-- `handlers/registry.go` 统一按 `message_type` 注册和查找
+- 根包统一按 `message_type` 注册和查找
 
 共享契约统一放在 `contract.go` 根包里，不放进 `handlers/`。原因很简单：
 
@@ -143,13 +147,12 @@
 ```text
 code/aggregate_registry_demo/
   handlers/
-    registry.go
-    registry_test.go
     xdr_risk_digest/
       handler.go
       handler_test.go
   contract.go
   dispatcher.go
+  registry_test.go
   dispatcher_test.go
   render.go
   sample_request.json

@@ -1,11 +1,10 @@
-package handlers
+package aggregate
 
 import (
 	"context"
 	"errors"
 	"testing"
 
-	core "notes/code/aggregate_registry_demo"
 	"notes/code/aggregate_registry_demo/messages"
 )
 
@@ -13,16 +12,16 @@ type stubHandler struct{}
 
 func (stubHandler) MessageType() string { return "stub" }
 func (stubHandler) MustRegister()       {}
-func (stubHandler) Aggregate(_ context.Context, _ *core.BizAggregateRequest) (*messages.BizAggregateResult, error) {
+func (stubHandler) Aggregate(_ context.Context, _ *BizAggregateRequest) (*messages.BizAggregateResult, error) {
 	return &messages.BizAggregateResult{MessageType: "stub", BizVars: messages.TemplateVars{}}, nil
 }
-func (stubHandler) Evaluate(_ context.Context, _ *core.RealtimeRequest) (*core.RealtimeDecision, error) {
-	return &core.RealtimeDecision{Matched: false}, nil
+func (stubHandler) Evaluate(_ context.Context, _ *RealtimeRequest) (*RealtimeDecision, error) {
+	return &RealtimeDecision{Matched: false}, nil
 }
 
 func TestResolveNotFound(t *testing.T) {
 	_, err := Resolve("missing")
-	if !errors.Is(err, core.ErrAggregatorNotFound) {
+	if !errors.Is(err, ErrAggregatorNotFound) {
 		t.Fatalf("expected ErrAggregatorNotFound, got %v", err)
 	}
 }
@@ -36,7 +35,7 @@ func TestMustRegisterAndResolve(t *testing.T) {
 		t.Fatalf("Resolve failed: %v", err)
 	}
 
-	result, err := resolved.Aggregate(context.Background(), &core.BizAggregateRequest{})
+	result, err := resolved.Aggregate(context.Background(), &BizAggregateRequest{})
 	if err != nil {
 		t.Fatalf("Aggregate failed: %v", err)
 	}
@@ -49,9 +48,9 @@ type stubHandlerWithType string
 
 func (s stubHandlerWithType) MessageType() string { return string(s) }
 func (s stubHandlerWithType) MustRegister()       {}
-func (s stubHandlerWithType) Aggregate(_ context.Context, _ *core.BizAggregateRequest) (*messages.BizAggregateResult, error) {
+func (s stubHandlerWithType) Aggregate(_ context.Context, _ *BizAggregateRequest) (*messages.BizAggregateResult, error) {
 	return &messages.BizAggregateResult{MessageType: "stub", BizVars: messages.TemplateVars{}}, nil
 }
-func (s stubHandlerWithType) Evaluate(_ context.Context, _ *core.RealtimeRequest) (*core.RealtimeDecision, error) {
-	return &core.RealtimeDecision{Matched: true}, nil
+func (s stubHandlerWithType) Evaluate(_ context.Context, _ *RealtimeRequest) (*RealtimeDecision, error) {
+	return &RealtimeDecision{Matched: true}, nil
 }
