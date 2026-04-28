@@ -85,6 +85,10 @@ go run .\code\aggregate_render_demo\main.go
 ```text
 code/aggregate_render_demo/
   main.go
+  render.go
+  messages/
+    result.go
+    xdr_risk_digest.go
   sample_config.json
   sample_result.json
   templates/

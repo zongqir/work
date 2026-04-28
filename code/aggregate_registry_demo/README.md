@@ -46,6 +46,25 @@ var registry = map[string]MessageSpec{
 
 不需要改统一顶层结构。
 
+当前目录结构：
+
+```text
+code/aggregate_registry_demo/
+  main.go
+  render.go
+  messages/
+    envelope.go
+    registry.go
+    xdr_risk_digest.go
+  sample_config.json
+  sample_result.json
+  templates/
+    xdr_risk_digest/
+      email.tmpl
+      wecom.tmpl
+      sms.tmpl
+```
+
 运行方式：
 
 ```powershell
