@@ -6,18 +6,37 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"text/template"
 	"time"
 )
 
 type RenderConfig struct {
-	TemplateCode string    `json:"template_code"`
-	WindowStart  time.Time `json:"window_start"`
-	WindowEnd    time.Time `json:"window_end"`
+	WindowStart time.Time `json:"window_start"`
+	WindowEnd   time.Time `json:"window_end"`
 }
 
 type AggregateResult struct {
-	Data map[string]interface{} `json:"data"`
+	MessageType   string         `json:"message_type"`
+	XdrRiskDigest *XdrRiskDigest `json:"xdr_risk_digest,omitempty"`
+}
+
+type XdrRiskDigest struct {
+	TotalCount    int              `json:"total_count"`
+	CategoryCount int              `json:"category_count"`
+	Examples      []XdrRiskExample `json:"examples"`
+}
+
+type XdrRiskExample struct {
+	ObjectName string `json:"object_name"`
+	RiskType   string `json:"risk_type"`
+	EventCount int    `json:"event_count"`
+}
+
+type RenderView struct {
+	WindowLabel string
+	Payload     any
 }
 
 func main() {
@@ -31,10 +50,15 @@ func main() {
 		panic(err)
 	}
 
+	templateCode, view, err := buildRenderView(cfg, result)
+	if err != nil {
+		panic(err)
+	}
+
 	for _, channel := range []string{"email", "wecom", "sms"} {
 		rendered, err := renderSummary(
-			cfg,
-			result,
+			templateCode,
+			view,
 			channel,
 			"code/aggregate_render_demo/templates",
 		)
@@ -71,8 +95,63 @@ func loadResult(path string) (*AggregateResult, error) {
 	return &result, nil
 }
 
-func renderSummary(cfg *RenderConfig, result *AggregateResult, channel, templateRoot string) (string, error) {
-	templatePath := filepath.Join(templateRoot, cfg.TemplateCode, channel+".tmpl")
+func buildRenderView(cfg *RenderConfig, result *AggregateResult) (string, any, error) {
+	if result.MessageType == "" {
+		return "", nil, fmt.Errorf("message_type is required")
+	}
+
+	rv := reflect.ValueOf(result)
+	if rv.Kind() != reflect.Ptr || rv.IsNil() {
+		return "", nil, fmt.Errorf("result must be a non-nil pointer")
+	}
+
+	elem := rv.Elem()
+	typ := elem.Type()
+
+	activeCount := 0
+	activeType := ""
+	var activePayload any
+
+	for i := 0; i < elem.NumField(); i++ {
+		fieldType := typ.Field(i)
+		if fieldType.Name == "MessageType" {
+			continue
+		}
+
+		tag := strings.Split(fieldType.Tag.Get("json"), ",")[0]
+		if tag == "" || tag == "-" {
+			continue
+		}
+
+		fieldValue := elem.Field(i)
+		if fieldValue.Kind() != reflect.Ptr {
+			continue
+		}
+		if fieldValue.IsNil() {
+			continue
+		}
+
+		activeCount++
+		activeType = tag
+		activePayload = fieldValue.Interface()
+	}
+
+	if activeCount != 1 {
+		return "", nil, fmt.Errorf("exactly one message payload must be set")
+	}
+
+	if activeType != result.MessageType {
+		return "", nil, fmt.Errorf("message_type=%s but active payload is %s", result.MessageType, activeType)
+	}
+
+	return activeType, RenderView{
+		WindowLabel: formatWindowLabel(cfg.WindowStart, cfg.WindowEnd),
+		Payload:     activePayload,
+	}, nil
+}
+
+func renderSummary(templateCode string, view any, channel, templateRoot string) (string, error) {
+	templatePath := filepath.Join(templateRoot, templateCode, channel+".tmpl")
 	data, err := os.ReadFile(templatePath)
 	if err != nil {
 		return "", fmt.Errorf("read template failed: %w", err)
@@ -86,20 +165,11 @@ func renderSummary(cfg *RenderConfig, result *AggregateResult, channel, template
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, buildTemplateArgs(cfg, result)); err != nil {
+	if err := tmpl.Execute(&buf, view); err != nil {
 		return "", fmt.Errorf("render template failed: %w", err)
 	}
 
 	return buf.String(), nil
-}
-
-func buildTemplateArgs(cfg *RenderConfig, result *AggregateResult) map[string]interface{} {
-	args := make(map[string]interface{}, len(result.Data)+1)
-	for k, v := range result.Data {
-		args[k] = v
-	}
-	args["window_label"] = formatWindowLabel(cfg.WindowStart, cfg.WindowEnd)
-	return args
 }
 
 func formatWindowLabel(start, end time.Time) string {

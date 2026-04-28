@@ -1,6 +1,6 @@
-{{index . "window_label"}}内发现{{index . "total"}}条高危风险，主要集中在{{index . "group_count"}}类策略。
+{{.WindowLabel}}内发现{{.Payload.TotalCount}}条高危风险，主要集中在{{.Payload.CategoryCount}}类策略。
 
 典型案例：
-{{range $e := index . "examples"}}
-- {{index $e "name"}}：{{index $e "risk"}} {{index $e "count"}}条
+{{range .Payload.Examples}}
+- {{.ObjectName}}：{{.RiskType}} {{.EventCount}}条
 {{end}}

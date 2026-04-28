@@ -1,22 +1,23 @@
 {
-  "data": {
-    "total": 23,
-    "group_count": 3,
+  "message_type": "xdr_risk_digest",
+  "xdr_risk_digest": {
+    "total_count": 23,
+    "category_count": 3,
     "examples": [
       {
-        "name": "host-a",
-        "risk": "暴力破解",
-        "count": 6
+        "object_name": "host-a",
+        "risk_type": "暴力破解",
+        "event_count": 6
       },
       {
-        "name": "user-b",
-        "risk": "恶意登录",
-        "count": 4
+        "object_name": "user-b",
+        "risk_type": "恶意登录",
+        "event_count": 4
       },
       {
-        "name": "host-c",
-        "risk": "权限提升",
-        "count": 3
+        "object_name": "host-c",
+        "risk_type": "权限提升",
+        "event_count": 3
       }
     ]
   }

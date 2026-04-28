@@ -2,33 +2,67 @@
 
 这个 demo 只演示一件事：
 
-- 配置里给出 `template_code`
-- 业务返回聚合结果数据
-- 平台按 `template_code/channel` 维护模板文件
+- 顶层统一返回结构里带 `message_type`
+- 每种消息占一个独立属性
+- 平台根据 `message_type` 选择模板目录
 - `window_label` 由渲染层根据窗口自己生成
 - 渲染层用 Go `text/template` 按渠道生成最终 `message`
 
-模板直接使用原始字段名，不做额外驼峰转换，例如：
+当前示例结构是：
 
-```gotemplate
-{{index . "window_label"}}内发现{{index . "total"}}条高危风险
+```json
+{
+  "message_type": "xdr_risk_digest",
+  "xdr_risk_digest": {
+    "total_count": 23,
+    "category_count": 3,
+    "examples": [
+      {
+        "object_name": "host-a",
+        "risk_type": "暴力破解",
+        "event_count": 6
+      }
+    ]
+  }
+}
 ```
 
-如果结果里带列表，例如 `examples`，模板可以直接用 `range`：
+模板直接吃强类型字段，例如：
 
 ```gotemplate
-典型案例：
-{{range $e := index . "examples"}}
-- {{index $e "name"}}：{{index $e "risk"}} {{index $e "count"}}条
+{{.WindowLabel}}内发现{{.Payload.TotalCount}}条高危风险。
+```
+
+如果结果里带案例列表，模板直接 `range .Payload.Examples`：
+
+```gotemplate
+{{range .Payload.Examples}}
+- {{.ObjectName}}：{{.RiskType}} {{.EventCount}}条
 {{end}}
 ```
 
 这样平台只统一两件事：
 
-- 模板定位规则：`template_code + channel`
-- 渲染协议：普通字段用 `index`，列表字段用 `range`
+- 模板定位规则：`message_type + channel`
+- 结果协议：每种消息一个独立子结构
 
-至于案例要不要返回、返回多少条、每条案例有哪些字段，交给聚合结果自己决定。
+当前 demo 还额外做了一条运行时约束：
+
+- 顶层消息体里只能有一个非空
+- 且它必须和 `message_type` 一致
+
+当前 `buildRenderView` 采用通用反射逻辑：
+
+- 根据顶层哪个消息字段非空，自动识别当前 payload
+- 校验它和 `message_type` 是否一致
+- 自动把该 payload 作为模板的 `.Payload`
+
+因此，新增一种消息时，demo 里只需要：
+
+- 在顶层结果结构里增加一个新字段
+- 增加对应模板目录
+
+不需要再为 `buildRenderView` 新增一个 `switch case`。
 
 运行方式：
 
