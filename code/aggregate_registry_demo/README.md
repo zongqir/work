@@ -1,11 +1,11 @@
 # Aggregate Registry Demo
 
-这个版本演示的是 `message_type + template_vars + effective policy`：
+这个版本演示的是 `message_type + biz_vars + system_vars + effective policy`：
 
-- 业务聚合结果直接返回 `message_type + template_vars`
-- 平台不再解码业务 payload，也不再注册消息结构体
+- 业务聚合结果返回 `message_type + biz_vars`
+- 平台根据请求上下文补 `system_vars`，例如 `window_label`
+- 渲染模板时统一包装成 `.biz` 和 `.sys`
 - 渠道不由业务结果定义，而是由生效策略决定
-- 邮件、webhook、短信围绕同一份 `template_vars` 工作
 
 这里刻意把输入和输出分开：
 
@@ -13,11 +13,13 @@
 - 聚合结果：`sample_result.json`
 - 生效策略：`sample_policy.json`
 
-输入侧只保留平台自己需要的上下文，例如租户标识和查询参数：
+输入侧保留平台自己需要的上下文，例如租户和时间窗口：
 
 ```json
 {
   "tenant_id": "t_1001",
+  "window_start": "2026-04-28T10:00:00Z",
+  "window_end": "2026-04-28T11:00:00Z",
   "config_body": {
     "severity": ["high", "critical"],
     "sample_limit": 3
@@ -30,8 +32,7 @@
 ```json
 {
   "message_type": "xdr_risk_digest",
-  "template_vars": {
-    "window_label": "过去1小时",
+  "biz_vars": {
     "total_count": "23",
     "category_count": "3",
     "examples": [
@@ -45,50 +46,38 @@
 }
 ```
 
-生效策略示例：
+平台在渲染前会构造模板上下文：
 
 ```json
 {
-  "tenant_id": "t_1001",
-  "message_type": "xdr_risk_digest",
-  "channels": [
-    {
-      "channel": "email",
-      "template_code": "xdr_risk_digest_default"
-    },
-    {
-      "channel": "webhook",
-      "template_code": "xdr_risk_digest_default"
-    },
-    {
-      "channel": "sms",
-      "template_code": "SMS_001"
-    }
-  ]
+  "biz": {
+    "total_count": "23"
+  },
+  "sys": {
+    "window_label": "过去1小时"
+  }
 }
 ```
 
-模板只引用 `template_vars`，例如：
+模板引用方式例如：
 
 ```tmpl
-{{.window_label}}风险摘要：{{.total_count}}条高危事件
+{{.sys.window_label}}风险摘要：{{.biz.total_count}}条高危事件
 ```
 
 当前职责拆分：
 
-- `message_type + template_vars` 由业务聚合侧负责
+- `message_type + biz_vars` 由业务聚合侧负责
+- `system_vars` 由通知平台负责
 - `tenant_id + message_type -> channels` 由通知配置侧负责
 - `email` 和 `webhook` 走本地模板资产
 - `sms` 直接使用 `templateCode + kv`
 
-新增一种消息时，通常只需要：
+这种做法下：
 
-1. 约定新的 `message_type`
-2. 定义该 `message_type` 允许出现的 `template_vars`
-3. 按需新增邮件和 webhook 模板资产
-4. 在配置侧新增渠道策略
-
-不需要新增 payload 结构体，也不需要注册解码逻辑。
+- 上游协议保持简单，不需要传 `biz.xxx`
+- 模板边界清晰，不会和系统变量混在一起
+- 后续系统变量增加时，只需要往 `.sys` 里补
 
 当前目录结构：
 

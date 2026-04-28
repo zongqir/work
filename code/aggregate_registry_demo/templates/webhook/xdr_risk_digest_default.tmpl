@@ -1,5 +1,5 @@
-{{.window_label}}高危风险{{.total_count}}条，涉及{{.category_count}}类策略。
+{{.sys.window_label}}高危风险{{.biz.total_count}}条，涉及{{.biz.category_count}}类策略。
 典型案例：
-{{range .examples}}
+{{range .biz.examples}}
 - {{.object_name}}：{{.risk_type}} {{.event_count}}条
 {{end}}

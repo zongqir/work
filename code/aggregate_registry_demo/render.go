@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
 	"notes/code/aggregate_registry_demo/messages"
 )
@@ -15,8 +16,10 @@ import (
 // BizAggregateRequest 是发给业务方聚合接口的请求。
 // 这里只保留平台自己需要的上下文，例如 tenant_id 和查询条件。
 type BizAggregateRequest struct {
-	TenantID   string          `json:"tenant_id"`
-	ConfigBody json.RawMessage `json:"config_body"`
+	TenantID    string          `json:"tenant_id"`
+	WindowStart time.Time       `json:"window_start"`
+	WindowEnd   time.Time       `json:"window_end"`
+	ConfigBody  json.RawMessage `json:"config_body"`
 }
 
 // EffectivePolicy 是通知执行层根据 tenant_id + message_type 查到的生效策略。
@@ -33,7 +36,7 @@ type ChannelPolicy struct {
 
 // MessageRenderInput 是模板最终拿到的输入。
 type MessageRenderInput struct {
-	Vars messages.TemplateVars
+	Vars map[string]messages.TemplateVars
 }
 
 type RenderedChannelMessage struct {
@@ -96,16 +99,27 @@ func loadEffectivePolicy(path string) (*EffectivePolicy, error) {
 	return &policy, nil
 }
 
-func buildMessageRenderInput(result *messages.BizAggregateResult) (MessageRenderInput, error) {
+func buildMessageRenderInput(req *BizAggregateRequest, result *messages.BizAggregateResult) (MessageRenderInput, error) {
 	if result.MessageType == "" {
 		return MessageRenderInput{}, fmt.Errorf("message_type is required")
 	}
-	if len(result.TemplateVars) == 0 {
-		return MessageRenderInput{}, fmt.Errorf("template_vars is required")
+	if len(result.BizVars) == 0 {
+		return MessageRenderInput{}, fmt.Errorf("biz_vars is required")
+	}
+
+	bizVars := make(messages.TemplateVars, len(result.BizVars))
+	for key, value := range result.BizVars {
+		bizVars[key] = value
+	}
+	sysVars := messages.TemplateVars{
+		"window_label": formatWindowLabel(req.WindowStart, req.WindowEnd),
 	}
 
 	return MessageRenderInput{
-		Vars: result.TemplateVars,
+		Vars: map[string]messages.TemplateVars{
+			"biz": bizVars,
+			"sys": sysVars,
+		},
 	}, nil
 }
 
@@ -117,7 +131,7 @@ func renderByPolicy(req *BizAggregateRequest, result *messages.BizAggregateResul
 		return nil, fmt.Errorf("policy message_type mismatch: %s", policy.MessageType)
 	}
 
-	input, err := buildMessageRenderInput(result)
+	input, err := buildMessageRenderInput(req, result)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +182,7 @@ func renderChannel(input MessageRenderInput, policy ChannelPolicy, templateRoot 
 			Channel: "sms",
 			SMS: &RenderedSMS{
 				TemplateCode: policy.TemplateCode,
-				Params:       buildSMSParams(input.Vars),
+				Params:       buildSMSParams(input),
 			},
 		}, nil
 	default:
@@ -176,9 +190,43 @@ func renderChannel(input MessageRenderInput, policy ChannelPolicy, templateRoot 
 	}
 }
 
-func buildSMSParams(vars messages.TemplateVars) map[string]string {
+func buildSMSParams(input MessageRenderInput) map[string]string {
 	params := make(map[string]string)
-	for key, value := range vars {
+	for key, value := range input.Vars["biz"] {
+		switch v := value.(type) {
+		case string:
+			params[key] = v
+		case fmt.Stringer:
+			params[key] = v.String()
+		case int:
+			params[key] = fmt.Sprintf("%d", v)
+		case int8:
+			params[key] = fmt.Sprintf("%d", v)
+		case int16:
+			params[key] = fmt.Sprintf("%d", v)
+		case int32:
+			params[key] = fmt.Sprintf("%d", v)
+		case int64:
+			params[key] = fmt.Sprintf("%d", v)
+		case uint:
+			params[key] = fmt.Sprintf("%d", v)
+		case uint8:
+			params[key] = fmt.Sprintf("%d", v)
+		case uint16:
+			params[key] = fmt.Sprintf("%d", v)
+		case uint32:
+			params[key] = fmt.Sprintf("%d", v)
+		case uint64:
+			params[key] = fmt.Sprintf("%d", v)
+		case float32:
+			params[key] = fmt.Sprintf("%g", v)
+		case float64:
+			params[key] = fmt.Sprintf("%g", v)
+		case bool:
+			params[key] = fmt.Sprintf("%t", v)
+		}
+	}
+	for key, value := range input.Vars["sys"] {
 		switch v := value.(type) {
 		case string:
 			params[key] = v
@@ -234,4 +282,16 @@ func renderTextTemplate(templatePath string, input any) (string, error) {
 	}
 
 	return strings.TrimRight(buf.String(), "\r\n"), nil
+}
+
+func formatWindowLabel(start, end time.Time) string {
+	duration := end.Sub(start)
+	switch duration {
+	case time.Hour:
+		return "过去1小时"
+	case 24 * time.Hour:
+		return "过去1天"
+	default:
+		return fmt.Sprintf("%s - %s", start.Format("2006-01-02 15:04"), end.Format("15:04"))
+	}
 }

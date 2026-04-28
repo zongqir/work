@@ -1,7 +1,6 @@
 {
   "message_type": "xdr_risk_digest",
-  "template_vars": {
-    "window_label": "过去1小时",
+  "biz_vars": {
     "total_count": "23",
     "category_count": "3",
     "examples": [

@@ -1,6 +1,6 @@
-{{.window_label}}内发现{{.total_count}}条高危风险，主要集中在{{.category_count}}类策略。
+{{.sys.window_label}}内发现{{.biz.total_count}}条高危风险，主要集中在{{.biz.category_count}}类策略。
 
 典型案例：
-{{range .examples}}
+{{range .biz.examples}}
 - {{.object_name}}：{{.risk_type}} {{.event_count}}条
 {{end}}
