@@ -11,12 +11,14 @@ import (
 
 type stubAggregator struct{}
 
-func (stubAggregator) Aggregate(_ context.Context, _ *core.BizAggregateRequest) (*messages.BizAggregateResult, error) {
-	return &messages.BizAggregateResult{MessageType: "stub"}, nil
-}
-
 func (stubAggregator) MessageType() string {
 	return "stub"
+}
+
+func (stubAggregator) MustRegister() {}
+
+func (stubAggregator) Aggregate(_ context.Context, _ *core.BizAggregateRequest) (*messages.BizAggregateResult, error) {
+	return &messages.BizAggregateResult{MessageType: "stub"}, nil
 }
 
 func TestResolveNotFound(t *testing.T) {
@@ -46,6 +48,8 @@ func TestMustRegisterAndResolve(t *testing.T) {
 }
 
 type stubAggregatorWithType string
+
+func (s stubAggregatorWithType) MustRegister() {}
 
 func (s stubAggregatorWithType) Aggregate(_ context.Context, _ *core.BizAggregateRequest) (*messages.BizAggregateResult, error) {
 	return &messages.BizAggregateResult{MessageType: "stub"}, nil

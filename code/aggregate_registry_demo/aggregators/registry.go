@@ -11,7 +11,7 @@ var items = map[string]core.Aggregator{}
 
 // MustRegister 由各个实现包在 init 中调用。
 // 约束很简单：实现方必须同时满足 Aggregate + MessageType。
-func MustRegister(aggregator core.TypedAggregator) {
+func MustRegister(aggregator core.Aggregator) {
 	if aggregator == nil {
 		panic(fmt.Errorf("%w: aggregator is required", core.ErrInvalidRequest))
 	}

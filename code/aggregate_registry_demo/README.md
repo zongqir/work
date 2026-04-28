@@ -77,7 +77,10 @@
 
 生产级契约入口见 [contract.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/contract.go:1)：
 
-- `Aggregator`：业务方实现的聚合接口
+- `Aggregator`：业务方必须实现的最小接口
+- `MessageType()`：业务方自己定义消息标识
+- `MustRegister()`：业务方自己显式注册
+- `Aggregate(...)`：业务方自己完成聚合并返回结果
 - `ErrInvalidRequest`：请求非法
 - `ErrUnsupportedConfig`：配置不支持
 - `ErrTemporaryFailure`：临时失败，可由调用方决定是否重试
@@ -91,7 +94,8 @@
 - 现在先给了一个样例：[aggregators/xdr_risk_digest](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/aggregators/xdr_risk_digest)
 - 这个样例故意压到最小，只保留接口骨架
 - 业务侧真正需要做的事，就是在 `Aggregate(...)` 里填自己的 `biz_vars`
-- 每个实现同时满足 `Aggregator + MessageType()`，并在 `init()` 里自注册
+- 每个实现自己写 `MessageType()`、`MustRegister()`、`Aggregate(...)`
+- `init()` 里只调用自己实现好的 `MustRegister()`
 
 `contract.go` 继续留在根包，不放进 `aggregators/`。原因很简单：
 

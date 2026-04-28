@@ -8,23 +8,30 @@ import (
 	"notes/code/aggregate_registry_demo/messages"
 )
 
-const MessageType = "xdr_risk_digest"
-
 type Aggregator struct{}
 
-var _ core.TypedAggregator = (*Aggregator)(nil)
+var _ core.Aggregator = (*Aggregator)(nil)
 
 func init() {
-	aggregators.MustRegister(&Aggregator{})
+	New().MustRegister()
+}
+
+func New() *Aggregator {
+	return &Aggregator{}
+}
+
+func (a *Aggregator) MustRegister() {
+	aggregators.MustRegister(a)
 }
 
 func (a *Aggregator) MessageType() string {
-	return MessageType
+	return "xdr_risk_digest"
 }
 
-func (a *Aggregator) Aggregate(_ context.Context, _ *core.BizAggregateRequest) (*messages.BizAggregateResult, error) {
+func (a *Aggregator) Aggregate(_ context.Context, req *core.BizAggregateRequest) (*messages.BizAggregateResult, error) {
+	_ = req
 	return &messages.BizAggregateResult{
-		MessageType: MessageType,
+		MessageType: a.MessageType(),
 		BizVars: messages.TemplateVars{
 			// business fills vars here
 		},
