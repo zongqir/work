@@ -156,6 +156,7 @@ code/aggregate_registry_demo/
     xdr_risk_digest/
       handler.go
       handler_test.go
+  cache.go
   contract.go
   dispatcher.go
   registry_test.go
