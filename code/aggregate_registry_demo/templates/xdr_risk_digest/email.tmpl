@@ -1,0 +1,6 @@
+{{.WindowLabel}}内发现{{.Payload.TotalCount}}条高危风险，主要集中在{{.Payload.CategoryCount}}类策略。
+
+典型案例：
+{{range .Payload.Examples}}
+- {{.ObjectName}}：{{.RiskType}} {{.EventCount}}条
+{{end}}

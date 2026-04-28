@@ -1,0 +1,24 @@
+{
+  "message_type": "xdr_risk_digest",
+  "payload": {
+    "total_count": 23,
+    "category_count": 3,
+    "examples": [
+      {
+        "object_name": "host-a",
+        "risk_type": "暴力破解",
+        "event_count": 6
+      },
+      {
+        "object_name": "user-b",
+        "risk_type": "恶意登录",
+        "event_count": 4
+      },
+      {
+        "object_name": "host-c",
+        "risk_type": "权限提升",
+        "event_count": 3
+      }
+    ]
+  }
+}
