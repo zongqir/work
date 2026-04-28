@@ -3,7 +3,7 @@
 这个版本演示的是生产级聚合契约：
 
 - AES 定义聚合请求和返回协议
-- 业务方实现 `Aggregator` 接口
+- 业务方实现 `Handler` 接口
 - 业务结果返回 `message_type + biz_vars`
 - 平台根据请求上下文补 `system_vars`，例如 `window_label`
 - 渲染模板时统一包装成 `.biz` 和 `.sys`
@@ -77,37 +77,50 @@
 
 生产级契约入口见 [contract.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/contract.go:1)：
 
-- `Aggregator`：业务方必须实现的最小接口
+- `Handler`：业务方必须实现的最小接口
 - `MessageType()`：业务方自己定义消息标识
 - `MustRegister()`：业务方自己显式注册
 - `Aggregate(...)`：业务方自己完成聚合并返回结果
+- `Evaluate(...)`：业务方自己完成实时筛选并返回结果
+- `BizAggregateRequest`：聚合请求
+- `RealtimeRequest`：实时请求
+- `RealtimeDecision`：实时判断结果
+- `PendingMessage`：待发送消息载体
 - `ErrInvalidRequest`：请求非法
 - `ErrUnsupportedConfig`：配置不支持
 - `ErrTemporaryFailure`：临时失败，可由调用方决定是否重试
 - `ErrAggregatorNotFound`：运行时没有找到对应 `message_type` 的实现
 
-正式业务实现目录放在 `aggregators/`：
+实时 SDK 入口见 [realtime_sdk.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/realtime_sdk.go:1)。
+
+实时场景口径：
+
+- AES 提供 `RealtimeSDK`
+- 业务方实现 `Handler` 的 `Evaluate(...)`
+- AES 把 `filter_query json + event_body json` 交给业务方
+- 业务方自己筛选
+- 命中时返回 `Matched=true + biz_vars`
+- SDK 统一负责把待发送记录写下去
+
+正式业务实现统一放在 `handlers/`：
 
 - 每个 `message_type` 一个子目录
-- 子目录里放正式实现代码
-- `registry.go` 只做两件事：`MustRegister` 和 `Resolve`
-- 现在先给了一个样例：[aggregators/xdr_risk_digest](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/aggregators/xdr_risk_digest)
-- 这个样例故意压到最小，只保留接口骨架
-- 业务侧真正需要做的事，就是在 `Aggregate(...)` 里填自己的 `biz_vars`
-- 每个实现自己写 `MessageType()`、`MustRegister()`、`Aggregate(...)`
-- `init()` 里只调用自己实现好的 `MustRegister()`
+- 每个子目录只有一个 `handler.go`
+- 一个 `Handler` 同时实现：
+  `MessageType()`、`MustRegister()`、`Aggregate(...)`、`Evaluate(...)`
+- `handlers/registry.go` 统一按 `message_type` 注册和查找
 
-`contract.go` 继续留在根包，不放进 `aggregators/`。原因很简单：
+共享契约统一放在 `contract.go` 根包里，不放进 `handlers/`。原因很简单：
 
 - 它描述的是 AES 和业务方共享的契约
 - 不是某个具体实现目录的私有代码
-- `aggregators/` 只放实现和注册，职责更清楚
+- `handlers/` 只放实现和注册，职责更清楚
 
 这种方式的作用是：
 
 - 避免新增实现时忘记手动改注册表
 - `message_type` 由实现自己声明，不需要在外部重复写一遍
-- 运行时只保留最小分发能力，不引入一套复杂 registry API
+- 聚合和实时统一收口到一个 handler 文件里
 
 需要注意：
 
@@ -124,13 +137,15 @@
 
 ```text
 code/aggregate_registry_demo/
-  aggregators/
+  handlers/
     registry.go
     registry_test.go
     xdr_risk_digest/
-      aggregator.go
-      aggregator_test.go
+      handler.go
+      handler_test.go
   contract.go
+  realtime_sdk.go
+  realtime_sdk_test.go
   render.go
   sample_request.json
   sample_result.json

@@ -13,15 +13,6 @@ import (
 	"notes/code/aggregate_registry_demo/messages"
 )
 
-// BizAggregateRequest 是发给业务方聚合接口的请求。
-// 这里只保留平台自己需要的上下文，例如 tenant_id 和查询条件。
-type BizAggregateRequest struct {
-	TenantID    string          `json:"tenant_id"`
-	WindowStart time.Time       `json:"window_start"`
-	WindowEnd   time.Time       `json:"window_end"`
-	ConfigBody  json.RawMessage `json:"config_body"`
-}
-
 // EffectivePolicy 是通知执行层根据 tenant_id + message_type 查到的生效策略。
 type EffectivePolicy struct {
 	TenantID    string          `json:"tenant_id"`
