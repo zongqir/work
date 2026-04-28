@@ -3,7 +3,7 @@ package main
 import "fmt"
 
 func main() {
-	cfg, err := loadConfig("code/aggregate_render_demo/sample_config.json")
+	req, err := loadRequest("code/aggregate_render_demo/sample_request.json")
 	if err != nil {
 		panic(err)
 	}
@@ -13,7 +13,7 @@ func main() {
 		panic(err)
 	}
 
-	templateCode, view, err := buildRenderView(cfg, result)
+	templateCode, view, err := buildRenderView(req, result)
 	if err != nil {
 		panic(err)
 	}

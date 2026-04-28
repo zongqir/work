@@ -12,10 +12,13 @@ import (
 	"time"
 )
 
-// RenderConfig 是渲染时的运行参数，不是上游请求或返回的一部分。
-type RenderConfig struct {
-	WindowStart time.Time `json:"window_start"`
-	WindowEnd   time.Time `json:"window_end"`
+// AggregateRequest 是输入。
+// 这里故意保留 config_body 这类 JSON 字段，表示请求侧可以更灵活。
+type AggregateRequest struct {
+	TenantID    string          `json:"tenant_id"`
+	WindowStart time.Time       `json:"window_start"`
+	WindowEnd   time.Time       `json:"window_end"`
+	ConfigBody  json.RawMessage `json:"config_body"`
 }
 
 // RenderView 是模板最终拿到的输入。
@@ -24,17 +27,17 @@ type RenderView struct {
 	Payload     any
 }
 
-func loadConfig(path string) (*RenderConfig, error) {
+func loadRequest(path string) (*AggregateRequest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var cfg RenderConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	var req AggregateRequest
+	if err := json.Unmarshal(data, &req); err != nil {
 		return nil, err
 	}
-	return &cfg, nil
+	return &req, nil
 }
 
 func loadResult(path string) (*AggregateResult, error) {
@@ -50,7 +53,7 @@ func loadResult(path string) (*AggregateResult, error) {
 	return &result, nil
 }
 
-func buildRenderView(cfg *RenderConfig, result *AggregateResult) (string, any, error) {
+func buildRenderView(req *AggregateRequest, result *AggregateResult) (string, any, error) {
 	if result.MessageType == "" {
 		return "", nil, fmt.Errorf("message_type is required")
 	}
@@ -100,7 +103,7 @@ func buildRenderView(cfg *RenderConfig, result *AggregateResult) (string, any, e
 	}
 
 	return activeType, RenderView{
-		WindowLabel: formatWindowLabel(cfg.WindowStart, cfg.WindowEnd),
+		WindowLabel: formatWindowLabel(req.WindowStart, req.WindowEnd),
 		Payload:     activePayload,
 	}, nil
 }

@@ -2,9 +2,31 @@
 
 这个版本演示的是 `message_type + payload + registry`：
 
+- 输入是请求 JSON
 - 顶层结果固定成 `message_type` + `payload`
 - 平台通过 `registry` 找到该消息对应的结构体和模板目录
 - 模板仍然按强类型字段渲染
+
+这里刻意把输入和输出分开：
+
+- 输入：`sample_request.json`
+- 输出：`sample_result.json`
+
+输入侧允许更灵活：
+
+```json
+{
+  "tenant_id": "t_1001",
+  "window_start": "2026-04-28T10:00:00Z",
+  "window_end": "2026-04-28T11:00:00Z",
+  "config_body": {
+    "severity": ["high", "critical"],
+    "sample_limit": 3
+  }
+}
+```
+
+输出侧要求强约束，必须符合平台定义的返回结构：
 
 当前示例结构：
 
@@ -56,7 +78,7 @@ code/aggregate_registry_demo/
     envelope.go
     registry.go
     xdr_risk_digest.go
-  sample_config.json
+  sample_request.json
   sample_result.json
   templates/
     xdr_risk_digest/

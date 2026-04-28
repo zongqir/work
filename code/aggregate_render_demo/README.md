@@ -2,11 +2,33 @@
 
 这个 demo 只演示一件事：
 
+- 输入是请求 JSON
 - 顶层统一返回结构里带 `message_type`
 - 每种消息占一个独立属性
 - 平台根据 `message_type` 选择模板目录
 - `window_label` 由渲染层根据窗口自己生成
 - 渲染层用 Go `text/template` 按渠道生成最终 `message`
+
+这里刻意把输入和输出分开：
+
+- 输入：`sample_request.json`
+- 输出：`sample_result.json`
+
+输入侧允许更灵活：
+
+```json
+{
+  "tenant_id": "t_1001",
+  "window_start": "2026-04-28T10:00:00Z",
+  "window_end": "2026-04-28T11:00:00Z",
+  "config_body": {
+    "severity": ["high", "critical"],
+    "sample_limit": 3
+  }
+}
+```
+
+输出侧要求强约束，必须符合平台定义的返回结构：
 
 当前示例结构是：
 
@@ -89,7 +111,7 @@ code/aggregate_render_demo/
   messages/
     result.go
     xdr_risk_digest.go
-  sample_config.json
+  sample_request.json
   sample_result.json
   templates/
     xdr_risk_digest/
