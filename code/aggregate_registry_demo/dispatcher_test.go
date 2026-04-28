@@ -8,12 +8,12 @@ import (
 	"notes/code/aggregate_registry_demo/messages"
 )
 
-type stubPendingWriter struct {
-	msg *PendingMessage
+type stubPublisher struct {
+	msg *DispatchMessage
 	err error
 }
 
-func (w *stubPendingWriter) WritePending(_ context.Context, msg *PendingMessage) error {
+func (w *stubPublisher) Publish(_ context.Context, msg *DispatchMessage) error {
 	if w.err != nil {
 		return w.err
 	}
@@ -35,11 +35,28 @@ func (h stubRealtimeHandler) Evaluate(_ context.Context, _ *RealtimeRequest) (*R
 	return h.decision, h.err
 }
 
-func TestRealtimeSDKHandleMatched(t *testing.T) {
-	writer := &stubPendingWriter{}
-	sdk := &RealtimeSDK{Writer: writer}
+func TestDispatcherDispatch(t *testing.T) {
+	writer := &stubPublisher{}
+	dispatcher := &Dispatcher{Publisher: writer}
 
-	decision, err := sdk.Handle(context.Background(), stubRealtimeHandler{
+	err := dispatcher.Dispatch(context.Background(), &DispatchMessage{
+		TenantID:    "t_1001",
+		MessageType: "xdr_risk_digest",
+		BizVars:     messages.TemplateVars{"risk_type": "暴力破解"},
+	})
+	if err != nil {
+		t.Fatalf("Dispatch failed: %v", err)
+	}
+	if writer.msg == nil {
+		t.Fatal("expected dispatch message to be published")
+	}
+}
+
+func TestDispatcherHandleRealtimeMatched(t *testing.T) {
+	writer := &stubPublisher{}
+	dispatcher := &Dispatcher{Publisher: writer}
+
+	decision, err := dispatcher.HandleRealtime(context.Background(), stubRealtimeHandler{
 		decision: &RealtimeDecision{
 			Matched: true,
 			BizVars: messages.TemplateVars{"risk_type": "暴力破解"},
@@ -52,15 +69,15 @@ func TestRealtimeSDKHandleMatched(t *testing.T) {
 		t.Fatal("expected matched decision")
 	}
 	if writer.msg == nil {
-		t.Fatal("expected pending message to be written")
+		t.Fatal("expected dispatch message to be published")
 	}
 }
 
-func TestRealtimeSDKHandleNotMatched(t *testing.T) {
-	writer := &stubPendingWriter{}
-	sdk := &RealtimeSDK{Writer: writer}
+func TestDispatcherHandleRealtimeNotMatched(t *testing.T) {
+	writer := &stubPublisher{}
+	dispatcher := &Dispatcher{Publisher: writer}
 
-	decision, err := sdk.Handle(context.Background(), stubRealtimeHandler{
+	decision, err := dispatcher.HandleRealtime(context.Background(), stubRealtimeHandler{
 		decision: &RealtimeDecision{Matched: false},
 	}, &RealtimeRequest{TenantID: "t_1001"})
 	if err != nil {
@@ -70,18 +87,18 @@ func TestRealtimeSDKHandleNotMatched(t *testing.T) {
 		t.Fatal("expected unmatched decision")
 	}
 	if writer.msg != nil {
-		t.Fatal("did not expect pending message to be written")
+		t.Fatal("did not expect dispatch message to be published")
 	}
 }
 
-func TestRealtimeSDKHandleWriterError(t *testing.T) {
-	expectedErr := errors.New("write failed")
-	sdk := &RealtimeSDK{Writer: &stubPendingWriter{err: expectedErr}}
+func TestDispatcherHandleRealtimePublisherError(t *testing.T) {
+	expectedErr := errors.New("publish failed")
+	dispatcher := &Dispatcher{Publisher: &stubPublisher{err: expectedErr}}
 
-	_, err := sdk.Handle(context.Background(), stubRealtimeHandler{
+	_, err := dispatcher.HandleRealtime(context.Background(), stubRealtimeHandler{
 		decision: &RealtimeDecision{Matched: true, BizVars: messages.TemplateVars{}},
 	}, &RealtimeRequest{TenantID: "t_1001"})
 	if !errors.Is(err, expectedErr) {
-		t.Fatalf("expected writer error, got %v", err)
+		t.Fatalf("expected publisher error, got %v", err)
 	}
 }

@@ -85,22 +85,29 @@
 - `BizAggregateRequest`：聚合请求
 - `RealtimeRequest`：实时请求
 - `RealtimeDecision`：实时判断结果
-- `PendingMessage`：待发送消息载体
+- `DispatchMessage`：实时命中后要分发的消息载体
 - `ErrInvalidRequest`：请求非法
 - `ErrUnsupportedConfig`：配置不支持
 - `ErrTemporaryFailure`：临时失败，可由调用方决定是否重试
 - `ErrAggregatorNotFound`：运行时没有找到对应 `message_type` 的实现
 
-实时 SDK 入口见 [realtime_sdk.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/realtime_sdk.go:1)。
+统一分发入口见 [dispatcher.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/dispatcher.go:1)。
+
+分发口径：
+
+- AES 提供 `Dispatcher`
+- `Dispatcher.Dispatch(...)` 是统一发布能力
+- 默认发布口径可以是 MQ，不绑定数据库
+- 聚合和实时最后都归一到 `DispatchMessage`
 
 实时场景口径：
 
-- AES 提供 `RealtimeSDK`
+- AES 调用 `Dispatcher.HandleRealtime(...)`
 - 业务方实现 `Handler` 的 `Evaluate(...)`
 - AES 把 `filter_query json + event_body json` 交给业务方
 - 业务方自己筛选
 - 命中时返回 `Matched=true + biz_vars`
-- SDK 统一负责把待发送记录写下去
+- `Dispatcher` 统一负责把结果发布出去
 
 正式业务实现统一放在 `handlers/`：
 
@@ -144,8 +151,8 @@ code/aggregate_registry_demo/
       handler.go
       handler_test.go
   contract.go
-  realtime_sdk.go
-  realtime_sdk_test.go
+  dispatcher.go
+  dispatcher_test.go
   render.go
   sample_request.json
   sample_result.json

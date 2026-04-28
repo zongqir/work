@@ -1,0 +1,58 @@
+package aggregate
+
+import (
+	"context"
+	"fmt"
+)
+
+// MessagePublisher 由平台提供，负责把命中的实时结果发布出去。
+// 默认口径可以是发到 MQ，不承诺具体介质。
+type MessagePublisher interface {
+	Publish(ctx context.Context, msg *DispatchMessage) error
+}
+
+type Dispatcher struct {
+	Publisher MessagePublisher
+}
+
+func (d *Dispatcher) Dispatch(ctx context.Context, msg *DispatchMessage) error {
+	if d == nil || d.Publisher == nil {
+		return fmt.Errorf("%w: message publisher is required", ErrInvalidRequest)
+	}
+	if msg == nil {
+		return fmt.Errorf("%w: dispatch message is nil", ErrInvalidRequest)
+	}
+
+	return d.Publisher.Publish(ctx, msg)
+}
+
+func (d *Dispatcher) HandleRealtime(ctx context.Context, handler Handler, req *RealtimeRequest) (*RealtimeDecision, error) {
+	if handler == nil {
+		return nil, fmt.Errorf("%w: handler is required", ErrInvalidRequest)
+	}
+	if req == nil {
+		return nil, fmt.Errorf("%w: realtime request is nil", ErrInvalidRequest)
+	}
+
+	decision, err := handler.Evaluate(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if decision == nil {
+		return nil, fmt.Errorf("%w: realtime decision is nil", ErrTemporaryFailure)
+	}
+	if !decision.Matched {
+		return decision, nil
+	}
+
+	if err := d.Dispatch(ctx, &DispatchMessage{
+		TenantID:    req.TenantID,
+		MessageType: handler.MessageType(),
+		BizVars:     decision.BizVars,
+		EventBody:   req.EventBody,
+	}); err != nil {
+		return nil, err
+	}
+
+	return decision, nil
+}

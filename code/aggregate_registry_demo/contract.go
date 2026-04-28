@@ -36,7 +36,7 @@ type RealtimeDecision struct {
 	BizVars messages.TemplateVars `json:"biz_vars,omitempty"`
 }
 
-type PendingMessage struct {
+type DispatchMessage struct {
 	TenantID    string                `json:"tenant_id"`
 	MessageType string                `json:"message_type"`
 	BizVars     messages.TemplateVars `json:"biz_vars"`
