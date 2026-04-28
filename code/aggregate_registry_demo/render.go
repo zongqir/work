@@ -1,4 +1,4 @@
-package main
+package aggregatepreview
 
 import (
 	"bytes"
@@ -99,7 +99,7 @@ func loadEffectivePolicy(path string) (*EffectivePolicy, error) {
 	return &policy, nil
 }
 
-func buildMessageRenderInput(req *BizAggregateRequest, result *messages.BizAggregateResult) (MessageRenderInput, error) {
+func BuildMessageRenderInput(req *BizAggregateRequest, result *messages.BizAggregateResult) (MessageRenderInput, error) {
 	if result.MessageType == "" {
 		return MessageRenderInput{}, fmt.Errorf("message_type is required")
 	}
@@ -123,7 +123,7 @@ func buildMessageRenderInput(req *BizAggregateRequest, result *messages.BizAggre
 	}, nil
 }
 
-func renderByPolicy(req *BizAggregateRequest, result *messages.BizAggregateResult, policy *EffectivePolicy, templateRoot string) ([]RenderedChannelMessage, error) {
+func RenderByPolicy(req *BizAggregateRequest, result *messages.BizAggregateResult, policy *EffectivePolicy, templateRoot string) ([]RenderedChannelMessage, error) {
 	if policy.TenantID != req.TenantID {
 		return nil, fmt.Errorf("policy tenant_id mismatch: %s", policy.TenantID)
 	}
@@ -131,7 +131,7 @@ func renderByPolicy(req *BizAggregateRequest, result *messages.BizAggregateResul
 		return nil, fmt.Errorf("policy message_type mismatch: %s", policy.MessageType)
 	}
 
-	input, err := buildMessageRenderInput(req, result)
+	input, err := BuildMessageRenderInput(req, result)
 	if err != nil {
 		return nil, err
 	}

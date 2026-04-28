@@ -83,13 +83,15 @@
 
 ```text
 code/aggregate_registry_demo/
-  main.go
   render.go
   sample_request.json
   sample_result.json
   sample_policy.json
   messages/
     envelope.go
+  preview/
+    preview.go
+    preview_test.go
   templates/
     email/
       xdr_risk_digest_default.subject.tmpl
@@ -98,9 +100,40 @@ code/aggregate_registry_demo/
       xdr_risk_digest_default.tmpl
 ```
 
-运行方式：
+最轻的预览方式是复用 `preview/` 子目录里的辅助函数，或者直接跑那里的测试：
 
 ```powershell
 cd .\code\aggregate_registry_demo
-go run .
+go test .\preview
+```
+
+如果业务方自己要写一个很薄的调用，只需要调用：
+
+```go
+preview, err := preview.FromFiles(
+    "sample_request.json",
+    "sample_result.json",
+    "sample_policy.json",
+    "templates",
+    true,
+)
+```
+
+如果想把结果打印成 JSON：
+
+```go
+data, err := preview.Marshal(preview)
+```
+
+模板预览工具：
+
+```powershell
+cd .\code\aggregate_registry_demo
+go run . -request sample_request.json -result sample_result.json -policy sample_policy.json -templates templates
+```
+
+如果要先看最终注入模板的 `.biz / .sys` 上下文，可以加：
+
+```powershell
+go run . -show-context
 ```
