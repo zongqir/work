@@ -17,12 +17,33 @@ type MessagePublisher interface {
 
 type Dispatcher struct {
 	Publisher MessagePublisher
-	LoadAll   func(ctx context.Context) (map[string]json.RawMessage, error)
+	LoadAll   func(ctx context.Context) (map[string]map[string]json.RawMessage, error)
 
 	cache configCache
 }
 
-func (d *Dispatcher) Send(ctx context.Context, tenantID, messageType string, eventBody json.RawMessage) error {
+type sendMode string
+
+const (
+	sendModeAggregate sendMode = "aggregate"
+	sendModeRealtime  sendMode = "realtime"
+)
+
+type messageConfig struct {
+	Enabled         bool            `json:"enabled"`
+	AggregateFilter json.RawMessage `json:"aggregate_filter"`
+	RealtimeFilter  json.RawMessage `json:"realtime_filter"`
+}
+
+func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) error {
+	return d.send(ctx, sendModeAggregate, tenantID, messageType, nil, windowStart, windowEnd)
+}
+
+func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType string, eventBody json.RawMessage) error {
+	return d.send(ctx, sendModeRealtime, tenantID, messageType, eventBody, time.Time{}, time.Time{})
+}
+
+func (d *Dispatcher) send(ctx context.Context, mode sendMode, tenantID, messageType string, eventBody json.RawMessage, windowStart, windowEnd time.Time) error {
 	if d == nil || d.Publisher == nil {
 		return fmt.Errorf("%w: message publisher is required", ErrInvalidRequest)
 	}
@@ -44,19 +65,15 @@ func (d *Dispatcher) Send(ctx context.Context, tenantID, messageType string, eve
 		return err
 	}
 
-	configs, err := d.cache.pick(ctx, []string{tenantID}, d.LoadAll)
+	configBody, err := d.cache.pick(ctx, tenantID, messageType, d.LoadAll)
 	if err != nil {
 		return err
 	}
-	configBody := configs[tenantID]
 	if len(configBody) == 0 {
 		return nil
 	}
 
-	var config struct {
-		Enabled     bool            `json:"enabled"`
-		FilterQuery json.RawMessage `json:"filter_query"`
-	}
+	var config messageConfig
 	if err := json.Unmarshal(configBody, &config); err != nil {
 		return err
 	}
@@ -64,18 +81,30 @@ func (d *Dispatcher) Send(ctx context.Context, tenantID, messageType string, eve
 		return nil
 	}
 
-	decision, err := d.sendWithHandler(ctx, handler, &RealtimeRequest{
-		TenantID:    tenantID,
-		FilterQuery: config.FilterQuery,
-		EventBody:   eventBody,
-	})
-	if err != nil {
-		return err
-	}
-	if decision == nil {
+	switch mode {
+	case sendModeAggregate:
+		return d.sendAggregateWithHandler(ctx, handler, &BizAggregateRequest{
+			TenantID:    tenantID,
+			WindowStart: windowStart,
+			WindowEnd:   windowEnd,
+			ConfigBody:  config.AggregateFilter,
+		})
+	case sendModeRealtime:
+		decision, err := d.sendRealtimeWithHandler(ctx, handler, &RealtimeRequest{
+			TenantID:    tenantID,
+			FilterQuery: config.RealtimeFilter,
+			EventBody:   eventBody,
+		})
+		if err != nil {
+			return err
+		}
+		if decision == nil {
+			return nil
+		}
 		return nil
+	default:
+		return fmt.Errorf("%w: unsupported send mode", ErrInvalidRequest)
 	}
-	return nil
 }
 
 func (d *Dispatcher) dispatch(ctx context.Context, msg *DispatchMessage) error {
@@ -89,7 +118,35 @@ func (d *Dispatcher) dispatch(ctx context.Context, msg *DispatchMessage) error {
 	return d.Publisher.Publish(ctx, msg)
 }
 
-func (d *Dispatcher) sendWithHandler(ctx context.Context, handler Handler, req *RealtimeRequest) (*RealtimeDecision, error) {
+func (d *Dispatcher) sendAggregateWithHandler(ctx context.Context, handler Handler, req *BizAggregateRequest) error {
+	if handler == nil {
+		return fmt.Errorf("%w: handler is required", ErrInvalidRequest)
+	}
+	if req == nil {
+		return fmt.Errorf("%w: aggregate request is nil", ErrInvalidRequest)
+	}
+
+	result, err := handler.Aggregate(ctx, req)
+	if err != nil {
+		return err
+	}
+	if result == nil || len(result.BizVars) == 0 {
+		return nil
+	}
+
+	messageType := result.MessageType
+	if strings.TrimSpace(messageType) == "" {
+		messageType = handler.MessageType()
+	}
+
+	return d.dispatch(ctx, &DispatchMessage{
+		TenantID:    req.TenantID,
+		MessageType: messageType,
+		BizVars:     result.BizVars,
+	})
+}
+
+func (d *Dispatcher) sendRealtimeWithHandler(ctx context.Context, handler Handler, req *RealtimeRequest) (*RealtimeDecision, error) {
 	if handler == nil {
 		return nil, fmt.Errorf("%w: handler is required", ErrInvalidRequest)
 	}
@@ -127,16 +184,16 @@ type configCache struct {
 	now func() time.Time
 	mu  sync.RWMutex
 
-	items      map[string]json.RawMessage
+	items      map[string]map[string]json.RawMessage
 	loadedAt   time.Time
 	refreshing bool
 }
 
-func (c *configCache) pick(ctx context.Context, tenantIDs []string, loadAll func(context.Context) (map[string]json.RawMessage, error)) (map[string]json.RawMessage, error) {
+func (c *configCache) pick(ctx context.Context, tenantID, messageType string, loadAll func(context.Context) (map[string]map[string]json.RawMessage, error)) (json.RawMessage, error) {
 	if c == nil {
 		return nil, nil
 	}
-	if len(tenantIDs) == 0 {
+	if tenantID == "" || messageType == "" {
 		return nil, nil
 	}
 	if loadAll == nil {
@@ -195,14 +252,13 @@ func (c *configCache) pick(ctx context.Context, tenantIDs []string, loadAll func
 		c.mu.Unlock()
 	}
 
-	selected := make(map[string]json.RawMessage, len(tenantIDs))
-	for _, tenantID := range tenantIDs {
-		if config := items[tenantID]; config != nil {
-			selected[tenantID] = config
-		}
-	}
-	if len(selected) == 0 {
+	tenantConfigs := items[tenantID]
+	if len(tenantConfigs) == 0 {
 		return nil, nil
 	}
-	return selected, nil
+	config := tenantConfigs[messageType]
+	if len(config) == 0 {
+		return nil, nil
+	}
+	return config, nil
 }

@@ -96,20 +96,26 @@
 分发口径：
 
 - AES 提供 `Dispatcher`
-- 对外只提供一个能力：`Dispatcher.Send(...)`
-- 传入 `tenant_id + message_type + event_body`
+- 对外提供两个方法：`Dispatcher.SendAggregate(...)` 和 `Dispatcher.SendRealtime(...)`
+- 两个方法内部走同一套分发流程
 - 平台根据 `message_type` 找到对应业务实现
 - 默认发布口径可以是 MQ，不绑定数据库
 
 实时场景口径：
 
-- 先从缓存里取这个租户对应的配置
+- 先从缓存里取这个租户这个 `message_type` 对应的配置
 - 缓存超过 5 分钟时，异步刷新全量配置
 - 缓存超过 30 分钟时，视为缓存不存在，直接同步拉全量配置
 - 拿到本租户配置后，先判断是否开启
 - 没开启就直接结束
 - 开启后执行业务方实现的实时方法
 - 命中并拿到 vars 后，再发出去
+
+聚合场景口径：
+
+- 同样先从缓存里取这个租户这个 `message_type` 对应的配置
+- 然后走业务方实现的 `Aggregate(...)`
+- 拿到结果后直接发出去
 
 正式业务实现统一放在 `handlers/`：
 
