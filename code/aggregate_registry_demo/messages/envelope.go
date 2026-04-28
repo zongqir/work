@@ -2,15 +2,14 @@ package main
 
 import "encoding/json"
 
-// AggregateEnvelope 是上游返回结果。
+// BizAggregateResult 是业务方聚合接口返回结果。
 // 顶层固定为 message_type + payload。
-type AggregateEnvelope struct {
+type BizAggregateResult struct {
 	MessageType string          `json:"message_type"`
 	Payload     json.RawMessage `json:"payload"`
 }
 
-// MessageSpec 描述某一种消息该怎么解码、该用哪套模板。
-type MessageSpec struct {
-	TemplateCode string
-	NewPayload   func() any
+// BizAggregateResultMeta 描述某一种业务聚合结果该怎么解码。
+type BizAggregateResultMeta struct {
+	NewPayload func() any
 }

@@ -47,12 +47,11 @@
 }
 ```
 
-注册表定义在 [main.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/main.go)：
+注册表定义在 [registry.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/messages/registry.go)：
 
 ```go
-var registry = map[string]MessageSpec{
+var bizAggregateResultRegistry = map[string]BizAggregateResultMeta{
     "xdr_risk_digest": {
-        TemplateCode: "xdr_risk_digest",
         NewPayload: func() any {
             return &XdrRiskDigest{}
         },

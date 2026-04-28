@@ -1,8 +1,7 @@
 package main
 
-var registry = map[string]MessageSpec{
+var bizAggregateResultRegistry = map[string]BizAggregateResultMeta{
 	"xdr_risk_digest": {
-		TemplateCode: "xdr_risk_digest",
 		NewPayload: func() any {
 			return &XdrRiskDigest{}
 		},

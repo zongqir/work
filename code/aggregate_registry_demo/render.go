@@ -10,72 +10,72 @@ import (
 	"time"
 )
 
-// AggregateRequest 是输入。
+// BizAggregateRequest 是发给业务方聚合接口的请求。
 // 这里故意保留 config_body 这类 JSON 字段，表示请求侧可以更灵活。
-type AggregateRequest struct {
+type BizAggregateRequest struct {
 	TenantID    string          `json:"tenant_id"`
 	WindowStart time.Time       `json:"window_start"`
 	WindowEnd   time.Time       `json:"window_end"`
 	ConfigBody  json.RawMessage `json:"config_body"`
 }
 
-// RenderView 是模板最终拿到的输入。
-type RenderView struct {
+// MessageRenderInput 是模板最终拿到的输入。
+type MessageRenderInput struct {
 	WindowLabel string
 	Payload     any
 }
 
-func loadRequest(path string) (*AggregateRequest, error) {
+func loadBizAggregateRequest(path string) (*BizAggregateRequest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var req AggregateRequest
+	var req BizAggregateRequest
 	if err := json.Unmarshal(data, &req); err != nil {
 		return nil, err
 	}
 	return &req, nil
 }
 
-func loadEnvelope(path string) (*AggregateEnvelope, error) {
+func loadBizAggregateResult(path string) (*BizAggregateResult, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var envelope AggregateEnvelope
-	if err := json.Unmarshal(data, &envelope); err != nil {
+	var result BizAggregateResult
+	if err := json.Unmarshal(data, &result); err != nil {
 		return nil, err
 	}
-	return &envelope, nil
+	return &result, nil
 }
 
-func buildRenderView(req *AggregateRequest, envelope *AggregateEnvelope) (string, any, error) {
-	if envelope.MessageType == "" {
+func buildMessageRenderInput(req *BizAggregateRequest, result *BizAggregateResult) (string, any, error) {
+	if result.MessageType == "" {
 		return "", nil, fmt.Errorf("message_type is required")
 	}
-	if len(envelope.Payload) == 0 {
+	if len(result.Payload) == 0 {
 		return "", nil, fmt.Errorf("payload is required")
 	}
 
-	spec, ok := registry[envelope.MessageType]
+	meta, ok := bizAggregateResultRegistry[result.MessageType]
 	if !ok {
-		return "", nil, fmt.Errorf("unsupported message_type: %s", envelope.MessageType)
+		return "", nil, fmt.Errorf("unsupported message_type: %s", result.MessageType)
 	}
 
-	payload := spec.NewPayload()
-	if err := json.Unmarshal(envelope.Payload, payload); err != nil {
+	payload := meta.NewPayload()
+	if err := json.Unmarshal(result.Payload, payload); err != nil {
 		return "", nil, fmt.Errorf("decode payload failed: %w", err)
 	}
 
-	return spec.TemplateCode, RenderView{
+	return result.MessageType, MessageRenderInput{
 		WindowLabel: formatWindowLabel(req.WindowStart, req.WindowEnd),
 		Payload:     payload,
 	}, nil
 }
 
-func renderSummary(templateCode string, view any, channel, templateRoot string) (string, error) {
+func renderMessage(templateCode string, input any, channel, templateRoot string) (string, error) {
 	templatePath := filepath.Join(templateRoot, templateCode, channel+".tmpl")
 	data, err := os.ReadFile(templatePath)
 	if err != nil {
@@ -90,7 +90,7 @@ func renderSummary(templateCode string, view any, channel, templateRoot string) 
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, view); err != nil {
+	if err := tmpl.Execute(&buf, input); err != nil {
 		return "", fmt.Errorf("render template failed: %w", err)
 	}
 
