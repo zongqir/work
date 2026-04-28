@@ -81,14 +81,34 @@
 - `ErrInvalidRequest`：请求非法
 - `ErrUnsupportedConfig`：配置不支持
 - `ErrTemporaryFailure`：临时失败，可由调用方决定是否重试
+- `ErrAggregatorNotFound`：运行时没有找到对应 `message_type` 的实现
 
 正式业务实现目录放在 `aggregators/`：
 
 - 每个 `message_type` 一个子目录
 - 子目录里放正式实现代码
+- `registry.go` 只做两件事：`MustRegister` 和 `Resolve`
 - 现在先给了一个样例：[aggregators/xdr_risk_digest](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/aggregators/xdr_risk_digest)
 - 这个样例故意只演示“如何实现接口并返回 `biz_vars`”
 - 不展开内部 repo、query、source 这些实现细节，避免把注意力带偏
+- 每个实现同时满足 `Aggregator + MessageType()`，并在 `init()` 里自注册
+
+`contract.go` 继续留在根包，不放进 `aggregators/`。原因很简单：
+
+- 它描述的是 AES 和业务方共享的契约
+- 不是某个具体实现目录的私有代码
+- `aggregators/` 只放实现和注册，职责更清楚
+
+这种方式的作用是：
+
+- 避免新增实现时忘记手动改注册表
+- `message_type` 由实现自己声明，不需要在外部重复写一遍
+- 运行时只保留最小分发能力，不引入一套复杂 registry API
+
+需要注意：
+
+- `init()` 只能解决“忘记注册”
+- 如果某个实现包根本没有被引入，它的 `init()` 也不会执行
 
 这种做法下：
 
@@ -101,6 +121,8 @@
 ```text
 code/aggregate_registry_demo/
   aggregators/
+    registry.go
+    registry_test.go
     xdr_risk_digest/
       aggregator.go
       aggregator_test.go
