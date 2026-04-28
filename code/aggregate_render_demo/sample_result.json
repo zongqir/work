@@ -1,6 +1,23 @@
 {
   "data": {
-      "total": 23,
-      "group_count": 3
+    "total": 23,
+    "group_count": 3,
+    "examples": [
+      {
+        "name": "host-a",
+        "risk": "暴力破解",
+        "count": 6
+      },
+      {
+        "name": "user-b",
+        "risk": "恶意登录",
+        "count": 4
+      },
+      {
+        "name": "host-c",
+        "risk": "权限提升",
+        "count": 3
+      }
+    ]
   }
 }

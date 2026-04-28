@@ -14,6 +14,22 @@
 {{index . "window_label"}}内发现{{index . "total"}}条高危风险
 ```
 
+如果结果里带列表，例如 `examples`，模板可以直接用 `range`：
+
+```gotemplate
+典型案例：
+{{range $e := index . "examples"}}
+- {{index $e "name"}}：{{index $e "risk"}} {{index $e "count"}}条
+{{end}}
+```
+
+这样平台只统一两件事：
+
+- 模板定位规则：`template_code + channel`
+- 渲染协议：普通字段用 `index`，列表字段用 `range`
+
+至于案例要不要返回、返回多少条、每条案例有哪些字段，交给聚合结果自己决定。
+
 运行方式：
 
 ```powershell
