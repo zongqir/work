@@ -92,6 +92,36 @@
 
 统一分发入口见 [dispatcher.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/runtime/dispatcher.go:1)。
 
+默认启动入口见 [bootstrap.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/bootstrap/bootstrap.go:1)。
+
+简单模式接入时，外部不需要自己构建 `Publisher`，只需要准备：
+
+- `PulsarURL`
+- `Topic`
+- `LoadAll`
+
+最小示例：
+
+```go
+svc, err := bootstrap.New(bootstrap.Config{
+    PulsarURL: "pulsar://127.0.0.1:6650",
+    Topic:     "persistent://public/default/aes-dispatch",
+    LoadAll:   loadAllConfigs,
+})
+if err != nil {
+    return err
+}
+defer svc.Close()
+
+err = svc.SendRealtime(ctx, tenantID, messageType, eventBody)
+```
+
+如果确实要自己控制底层依赖，也可以直接走：
+
+```go
+dispatcher := bootstrap.NewWithRuntime(runtime.Options{...})
+```
+
 分发口径：
 
 - AES 提供 `Dispatcher`
