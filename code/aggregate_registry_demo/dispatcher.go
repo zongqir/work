@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -36,11 +35,23 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 		return nil
 	}
 
-	return d.sendAggregateWithHandler(ctx, handler, &BizAggregateRequest{
+	result, err := handler.Aggregate(ctx, &BizAggregateRequest{
 		TenantID:    tenantID,
 		WindowStart: windowStart,
 		WindowEnd:   windowEnd,
 		ConfigBody:  config.AggregateFilter,
+	})
+	if err != nil {
+		return err
+	}
+	if result == nil || len(result.BizVars) == 0 {
+		return nil
+	}
+
+	return d.dispatch(ctx, &DispatchMessage{
+		TenantID:    tenantID,
+		MessageType: handler.MessageType(),
+		BizVars:     result.BizVars,
 	})
 }
 
@@ -53,12 +64,27 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 		return nil
 	}
 
-	_, err = d.sendRealtimeWithHandler(ctx, handler, &RealtimeRequest{
+	decision, err := handler.Evaluate(ctx, &RealtimeRequest{
 		TenantID:    tenantID,
 		FilterQuery: config.RealtimeFilter,
 		EventBody:   eventBody,
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	if decision == nil {
+		return fmt.Errorf("%w: realtime decision is nil", ErrTemporaryFailure)
+	}
+	if !decision.Matched {
+		return nil
+	}
+
+	return d.dispatch(ctx, &DispatchMessage{
+		TenantID:    tenantID,
+		MessageType: handler.MessageType(),
+		BizVars:     decision.BizVars,
+		EventBody:   eventBody,
+	})
 }
 
 func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) (Handler, *messageConfig, string, error) {
@@ -69,11 +95,9 @@ func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) 
 		return nil, nil, "", fmt.Errorf("%w: load_all is required", ErrInvalidRequest)
 	}
 
-	tenantID = strings.TrimSpace(tenantID)
 	if tenantID == "" {
 		return nil, nil, "", fmt.Errorf("%w: tenant_id is required", ErrInvalidRequest)
 	}
-	messageType = strings.TrimSpace(messageType)
 	if messageType == "" {
 		return nil, nil, "", fmt.Errorf("%w: message_type is required", ErrInvalidRequest)
 	}
@@ -107,63 +131,4 @@ func (d *Dispatcher) dispatch(ctx context.Context, msg *DispatchMessage) error {
 	}
 
 	return d.Publisher.Publish(ctx, msg)
-}
-
-func (d *Dispatcher) sendAggregateWithHandler(ctx context.Context, handler Handler, req *BizAggregateRequest) error {
-	if handler == nil {
-		return fmt.Errorf("%w: handler is required", ErrInvalidRequest)
-	}
-	if req == nil {
-		return fmt.Errorf("%w: aggregate request is nil", ErrInvalidRequest)
-	}
-
-	result, err := handler.Aggregate(ctx, req)
-	if err != nil {
-		return err
-	}
-	if result == nil || len(result.BizVars) == 0 {
-		return nil
-	}
-
-	messageType := result.MessageType
-	if strings.TrimSpace(messageType) == "" {
-		messageType = handler.MessageType()
-	}
-
-	return d.dispatch(ctx, &DispatchMessage{
-		TenantID:    req.TenantID,
-		MessageType: messageType,
-		BizVars:     result.BizVars,
-	})
-}
-
-func (d *Dispatcher) sendRealtimeWithHandler(ctx context.Context, handler Handler, req *RealtimeRequest) (*RealtimeDecision, error) {
-	if handler == nil {
-		return nil, fmt.Errorf("%w: handler is required", ErrInvalidRequest)
-	}
-	if req == nil {
-		return nil, fmt.Errorf("%w: realtime request is nil", ErrInvalidRequest)
-	}
-
-	decision, err := handler.Evaluate(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	if decision == nil {
-		return nil, fmt.Errorf("%w: realtime decision is nil", ErrTemporaryFailure)
-	}
-	if !decision.Matched {
-		return decision, nil
-	}
-
-	if err := d.dispatch(ctx, &DispatchMessage{
-		TenantID:    req.TenantID,
-		MessageType: handler.MessageType(),
-		BizVars:     decision.BizVars,
-		EventBody:   req.EventBody,
-	}); err != nil {
-		return nil, err
-	}
-
-	return decision, nil
 }

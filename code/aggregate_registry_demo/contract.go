@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"notes/code/aggregate_registry_demo/messages"
@@ -61,7 +60,7 @@ func MustRegister(handler Handler) {
 		panic(fmt.Errorf("%w: handler is required", ErrInvalidRequest))
 	}
 
-	messageType := strings.TrimSpace(handler.MessageType())
+	messageType := handler.MessageType()
 	if messageType == "" {
 		panic(fmt.Errorf("%w: message_type is required", ErrInvalidRequest))
 	}
@@ -73,7 +72,6 @@ func MustRegister(handler Handler) {
 }
 
 func Resolve(messageType string) (Handler, error) {
-	messageType = strings.TrimSpace(messageType)
 	if messageType == "" {
 		return nil, fmt.Errorf("%w: message_type is required", ErrInvalidRequest)
 	}
