@@ -2,13 +2,15 @@ module notes
 
 go 1.24.0
 
-require github.com/prometheus/client_golang v1.23.2
+require (
+	github.com/apache/pulsar-client-go v0.19.0
+	github.com/prometheus/client_golang v1.23.2 // indirect
+)
 
 require (
 	github.com/AthenZ/athenz v1.12.13 // indirect
 	github.com/DataDog/zstd v1.5.0 // indirect
 	github.com/RoaringBitmap/roaring/v2 v2.8.0 // indirect
-	github.com/apache/pulsar-client-go v0.19.0 // indirect
 	github.com/ardielle/ardielle-go v1.5.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.12.0 // indirect

@@ -542,20 +542,7 @@ notify_send_record
 | 普通索引 | `tenant_id, status, updated_at` | 支持租户内失败、过期记录排查 |
 | 普通索引 | `tenant_id, idempotency_key` | 支持按业务幂等 key 查询记录 |
 
-OceanBase 分区设计：
 
-| 设计项 | 取值 | 说明 |
-|--------|------|------|
-| 分区方式 | `KEY(tenant_id)` | 按租户维度打散，常见查询可按租户路由 |
-| 分区数量 | `16` | 示例值，实际以线上租户规模和 OceanBase 集群规范评估 |
-| 时间二级分区 | 第一版不启用 | 发送结果记录不承担队列扫描，先不引入分区生命周期复杂度 |
-| 主键约束 | 主键包含 `tenant_id` | 与分区键保持一致，便于分区路由 |
-
-分区取舍说明：
-
-- 如果发送记录量后续明显增长，并且必须通过分区删除做生命周期清理，可以演进为 `KEY(tenant_id) + RANGE COLUMNS(created_at)` 二级分区
-- 第一版不写唯一键，避免将业务幂等和 OceanBase 唯一索引、分区键约束绑定
-- `idempotency_key` 仅作为查询字段和审计字段，重复语义由业务侧和消费链路处理
 
 记录粒度：
 
@@ -563,28 +550,6 @@ OceanBase 分区设计：
 - 如果后续需要按渠道、接收人、响应码做精细审计，可扩展 `notify_send_record_detail`
 - 明细表不影响主链路，主表仍以 `message_id` 表示一次待发送批次的最终状态
 
-OceanBase 建表语句建议：
-
-```sql
-CREATE TABLE notify_send_record (
-  message_id VARCHAR(128) NOT NULL,
-  idempotency_key VARCHAR(256) NOT NULL,
-  tenant_id VARCHAR(64) NOT NULL,
-  message_type VARCHAR(128) NOT NULL,
-  source VARCHAR(32) NOT NULL,
-  status VARCHAR(32) NOT NULL,
-  retry_count INT NOT NULL DEFAULT 0,
-  error_message VARCHAR(1024) DEFAULT NULL,
-  created_at DATETIME(6) NOT NULL,
-  expire_at DATETIME(6) NOT NULL,
-  updated_at DATETIME(6) NOT NULL,
-  PRIMARY KEY (tenant_id, message_id),
-  KEY idx_notify_send_record_tenant_type_time (tenant_id, message_type, created_at),
-  KEY idx_notify_send_record_tenant_status_time (tenant_id, status, updated_at),
-  KEY idx_notify_send_record_tenant_idempotency (tenant_id, idempotency_key)
-)
-PARTITION BY KEY(tenant_id) PARTITIONS 16;
-```
 
 
 #### 3.10.2. 聚合调度水位表
@@ -635,21 +600,6 @@ OceanBase 分区设计：
 - 水位更新建议使用 `version` 做乐观并发控制
 - 分布式锁负责控制同一轮调度并发，水位表负责记录窗口处理进度
 
-OceanBase 建表语句建议：
-
-```sql
-CREATE TABLE notify_aggregate_watermark (
-  tenant_id VARCHAR(64) NOT NULL,
-  message_type VARCHAR(128) NOT NULL,
-  last_window_end DATETIME(6) NOT NULL,
-  version BIGINT NOT NULL DEFAULT 0,
-  created_at DATETIME(6) NOT NULL,
-  updated_at DATETIME(6) NOT NULL,
-  PRIMARY KEY (tenant_id, message_type),
-  KEY idx_notify_aggregate_watermark_updated_at (updated_at)
-)
-PARTITION BY KEY(tenant_id) PARTITIONS 16;
-```
 
 #### 3.10.3. 状态定义
 
