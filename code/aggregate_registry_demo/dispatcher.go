@@ -27,7 +27,7 @@ type messageConfig struct {
 }
 
 func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) error {
-	handler, config, tenantID, err := d.prepare(ctx, tenantID, messageType)
+	handler, config, err := d.prepare(ctx, tenantID, messageType)
 	if err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 		return nil
 	}
 
-	return d.dispatch(ctx, &DispatchMessage{
+	return d.Publisher.Publish(ctx, &DispatchMessage{
 		TenantID:    tenantID,
 		MessageType: handler.MessageType(),
 		BizVars:     result.BizVars,
@@ -56,7 +56,7 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 }
 
 func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType string, eventBody json.RawMessage) error {
-	handler, config, tenantID, err := d.prepare(ctx, tenantID, messageType)
+	handler, config, err := d.prepare(ctx, tenantID, messageType)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 		return nil
 	}
 
-	return d.dispatch(ctx, &DispatchMessage{
+	return d.Publisher.Publish(ctx, &DispatchMessage{
 		TenantID:    tenantID,
 		MessageType: handler.MessageType(),
 		BizVars:     decision.BizVars,
@@ -87,48 +87,37 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 	})
 }
 
-func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) (Handler, *messageConfig, string, error) {
+func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) (Handler, *messageConfig, error) {
 	if d == nil || d.Publisher == nil {
-		return nil, nil, "", fmt.Errorf("%w: message publisher is required", ErrInvalidRequest)
+		return nil, nil, fmt.Errorf("%w: message publisher is required", ErrInvalidRequest)
 	}
 	if d.LoadAll == nil {
-		return nil, nil, "", fmt.Errorf("%w: load_all is required", ErrInvalidRequest)
+		return nil, nil, fmt.Errorf("%w: load_all is required", ErrInvalidRequest)
 	}
 
 	if tenantID == "" {
-		return nil, nil, "", fmt.Errorf("%w: tenant_id is required", ErrInvalidRequest)
+		return nil, nil, fmt.Errorf("%w: tenant_id is required", ErrInvalidRequest)
 	}
 	if messageType == "" {
-		return nil, nil, "", fmt.Errorf("%w: message_type is required", ErrInvalidRequest)
+		return nil, nil, fmt.Errorf("%w: message_type is required", ErrInvalidRequest)
 	}
 
 	handler, err := Resolve(messageType)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, err
 	}
 
 	configBody, err := d.cache.pick(ctx, tenantID, messageType, d.LoadAll)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, err
 	}
 	if len(configBody) == 0 {
-		return handler, nil, tenantID, nil
+		return handler, nil, nil
 	}
 
 	var config messageConfig
 	if err := json.Unmarshal(configBody, &config); err != nil {
-		return nil, nil, "", err
+		return nil, nil, err
 	}
-	return handler, &config, tenantID, nil
-}
-
-func (d *Dispatcher) dispatch(ctx context.Context, msg *DispatchMessage) error {
-	if d == nil || d.Publisher == nil {
-		return fmt.Errorf("%w: message publisher is required", ErrInvalidRequest)
-	}
-	if msg == nil {
-		return fmt.Errorf("%w: dispatch message is nil", ErrInvalidRequest)
-	}
-
-	return d.Publisher.Publish(ctx, msg)
+	return handler, &config, nil
 }
