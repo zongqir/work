@@ -76,7 +76,7 @@ func New(options Options) *Consumer {
 	}
 }
 
-func (c *Consumer) Consume(ctx context.Context, msg *contract.DispatchMessage) error {
+func (c *Consumer) Consume(ctx context.Context, msg *contract.DispatchMessage) (err error) {
 	if c == nil || c.Sender == nil {
 		return fmt.Errorf("%w: sender is required", contract.ErrInvalidRequest)
 	}
@@ -86,6 +86,11 @@ func (c *Consumer) Consume(ctx context.Context, msg *contract.DispatchMessage) e
 	if err := validateMessage(msg); err != nil {
 		return err
 	}
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = c.handleFailure(ctx, msg, fmt.Errorf("consume panic: %v", recovered))
+		}
+	}()
 
 	now := time.Now
 	if c.Now != nil {
@@ -100,20 +105,7 @@ func (c *Consumer) Consume(ctx context.Context, msg *contract.DispatchMessage) e
 		return c.saveRecord(ctx, msg, StatusExpired, "")
 	}
 	if err := c.Sender.Send(ctx, msg); err != nil {
-		maxRetry := c.MaxRetry
-		if maxRetry <= 0 {
-			maxRetry = DefaultMaxRetry
-		}
-		if msg.RetryCount < maxRetry {
-			if retryErr := c.publish(ctx, msg, true); retryErr != nil {
-				return retryErr
-			}
-			if c.LogError != nil {
-				c.LogError(ctx, "send message failed and moved to retry", err)
-			}
-			return nil
-		}
-		return c.saveRecord(ctx, msg, StatusFailed, err.Error())
+		return c.handleFailure(ctx, msg, err)
 	}
 
 	return c.saveRecord(ctx, msg, StatusSuccess, "")
@@ -145,6 +137,23 @@ func validateMessage(msg *contract.DispatchMessage) error {
 		return fmt.Errorf("%w: expire_at is required", contract.ErrInvalidRequest)
 	}
 	return nil
+}
+
+func (c *Consumer) handleFailure(ctx context.Context, msg *contract.DispatchMessage, err error) error {
+	maxRetry := c.MaxRetry
+	if maxRetry <= 0 {
+		maxRetry = DefaultMaxRetry
+	}
+	if msg.RetryCount < maxRetry {
+		if retryErr := c.publish(ctx, msg, true); retryErr != nil {
+			return retryErr
+		}
+		if c.LogError != nil {
+			c.LogError(ctx, "send message failed and moved to retry", err)
+		}
+		return nil
+	}
+	return c.saveRecord(ctx, msg, StatusFailed, err.Error())
 }
 
 func (c *Consumer) publish(ctx context.Context, msg *contract.DispatchMessage, incrementRetry bool) error {

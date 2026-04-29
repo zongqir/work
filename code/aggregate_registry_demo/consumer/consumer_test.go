@@ -11,11 +11,15 @@ import (
 )
 
 type stubSender struct {
-	err  error
-	sent *contract.DispatchMessage
+	err        error
+	sent       *contract.DispatchMessage
+	panicValue any
 }
 
 func (s *stubSender) Send(_ context.Context, msg *contract.DispatchMessage) error {
+	if s.panicValue != nil {
+		panic(s.panicValue)
+	}
 	s.sent = msg
 	return s.err
 }
@@ -214,6 +218,32 @@ func TestConsumeThirdRetryStillPublishes(t *testing.T) {
 	}
 	if retryPublisher.msg.RetryCount != 3 {
 		t.Fatalf("expected retry_count=3, got %d", retryPublisher.msg.RetryCount)
+	}
+}
+
+func TestConsumePanicMovesToRetry(t *testing.T) {
+	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
+	retryPublisher := &stubRetryPublisher{}
+	c := New(Options{
+		Sender: &stubSender{
+			panicValue: "boom",
+		},
+		RetryPublisher: retryPublisher,
+		Recorder:       &stubRecorder{},
+		Now: func() time.Time {
+			return now
+		},
+	})
+
+	err := c.Consume(context.Background(), newMessage(now))
+	if err != nil {
+		t.Fatalf("Consume failed: %v", err)
+	}
+	if retryPublisher.msg == nil {
+		t.Fatal("expected retry message to be published")
+	}
+	if retryPublisher.msg.RetryCount != 1 {
+		t.Fatalf("expected retry_count=1, got %d", retryPublisher.msg.RetryCount)
 	}
 }
 
