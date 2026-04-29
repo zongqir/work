@@ -43,11 +43,23 @@ type RealtimeDecision struct {
 }
 
 type DispatchMessage struct {
-	TenantID    string                `json:"tenant_id"`
-	MessageType string                `json:"message_type"`
-	BizVars     messages.TemplateVars `json:"biz_vars"`
-	EventBody   json.RawMessage       `json:"event_body,omitempty"`
+	MessageID      string                `json:"message_id"`
+	IdempotencyKey string                `json:"idempotency_key"`
+	TenantID       string                `json:"tenant_id"`
+	MessageType    string                `json:"message_type"`
+	Source         string                `json:"source"`
+	RetryCount     int                   `json:"retry_count"`
+	CreatedAt      time.Time             `json:"created_at"`
+	ExpectedSendAt time.Time             `json:"expected_send_at"`
+	ExpireAt       time.Time             `json:"expire_at"`
+	BizVars        messages.TemplateVars `json:"biz_vars"`
+	EventBody      json.RawMessage       `json:"event_body,omitempty"`
 }
+
+const (
+	DispatchSourceAggregate = "aggregate"
+	DispatchSourceRealtime  = "realtime"
+)
 
 // Handler 是业务侧需要实现的最小生产契约。
 // 一个 handler 同时声明聚合和实时两种能力，少实现任何一个方法都无法通过编译。
@@ -56,6 +68,7 @@ type Handler interface {
 	MustRegister()
 	Aggregate(ctx context.Context, req *BizAggregateRequest) (*messages.BizAggregateResult, error)
 	Evaluate(ctx context.Context, req *RealtimeRequest) (*RealtimeDecision, error)
+	RealtimeIdempotencyKey(ctx context.Context, req *RealtimeRequest) (string, error)
 }
 
 func MustRegister(handler Handler) {

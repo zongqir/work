@@ -1,4 +1,4 @@
-zpackage bootstrap
+package bootstrap
 
 import (
 	"context"
@@ -12,13 +12,15 @@ import (
 )
 
 type Config struct {
-	PulsarURL           string
-	PulsarClientOptions *pulsar.ClientOptions
-	Topic               string
-	LoadAll             func(ctx context.Context) (map[string]map[string]json.RawMessage, error)
-	LogError            func(ctx context.Context, msg string, err error)
-	CacheTTL            time.Duration
-	CacheMaxStale       time.Duration
+	PulsarURL            string
+	PulsarClientOptions  *pulsar.ClientOptions
+	Topic                string
+	LoadAll              func(ctx context.Context) (map[string]map[string]json.RawMessage, error)
+	LogError             func(ctx context.Context, msg string, err error)
+	CacheTTL             time.Duration
+	CacheMaxStale        time.Duration
+	RealtimeExpireAfter  time.Duration
+	AggregateExpireAfter time.Duration
 }
 
 type Service struct {
@@ -52,11 +54,13 @@ func New(config Config) (*Service, error) {
 
 	return &Service{
 		dispatcher: runtime.NewDispatcher(runtime.Options{
-			Publisher:     publisher,
-			LoadAll:       config.LoadAll,
-			LogError:      config.LogError,
-			CacheTTL:      config.CacheTTL,
-			CacheMaxStale: config.CacheMaxStale,
+			Publisher:            publisher,
+			LoadAll:              config.LoadAll,
+			LogError:             config.LogError,
+			CacheTTL:             config.CacheTTL,
+			CacheMaxStale:        config.CacheMaxStale,
+			RealtimeExpireAfter:  config.RealtimeExpireAfter,
+			AggregateExpireAfter: config.AggregateExpireAfter,
 		}),
 		publisher: publisher,
 		client:    client,

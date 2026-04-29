@@ -45,3 +45,8 @@ func (h *Handler) Evaluate(_ context.Context, req *contract.RealtimeRequest) (*c
 		},
 	}, nil
 }
+
+func (h *Handler) RealtimeIdempotencyKey(_ context.Context, req *contract.RealtimeRequest) (string, error) {
+	_ = req
+	return "fill-business-key-here", nil
+}

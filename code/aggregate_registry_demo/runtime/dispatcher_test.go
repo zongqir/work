@@ -21,14 +21,16 @@ func (p *stubPublisher) Publish(_ context.Context, msg *contract.DispatchMessage
 }
 
 type stubSendHandler struct {
-	messageType     string
-	aggregateCalled bool
-	realtimeCalled  bool
+	messageType       string
+	bizIdempotencyKey string
+	aggregateCalled   bool
+	realtimeCalled    bool
+	idempotencyCalled bool
 }
 
 var (
 	aggregateHandler = &stubSendHandler{messageType: "send_test_aggregate"}
-	realtimeHandler  = &stubSendHandler{messageType: "send_test_realtime"}
+	realtimeHandler  = &stubSendHandler{messageType: "send_test_realtime", bizIdempotencyKey: "biz-1"}
 )
 
 func init() {
@@ -55,13 +57,23 @@ func (h *stubSendHandler) Evaluate(_ context.Context, req *contract.RealtimeRequ
 		},
 	}, nil
 }
+func (h *stubSendHandler) RealtimeIdempotencyKey(_ context.Context, _ *contract.RealtimeRequest) (string, error) {
+	h.idempotencyCalled = true
+	return h.bizIdempotencyKey, nil
+}
 
 func TestSendAggregate(t *testing.T) {
 	aggregateHandler.aggregateCalled = false
+	now := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
+	windowStart := time.Date(2026, 4, 29, 11, 0, 0, 0, time.UTC)
+	windowEnd := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
 
 	publisher := &stubPublisher{}
 	dispatcher := NewDispatcher(Options{
 		Publisher: publisher,
+		Now: func() time.Time {
+			return now
+		},
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
 				"t_1": {
@@ -71,7 +83,7 @@ func TestSendAggregate(t *testing.T) {
 		},
 	})
 
-	err := dispatcher.SendAggregate(context.Background(), "t_1", "send_test_aggregate", time.Now(), time.Now())
+	err := dispatcher.SendAggregate(context.Background(), "t_1", "send_test_aggregate", windowStart, windowEnd)
 	if err != nil {
 		t.Fatalf("SendAggregate failed: %v", err)
 	}
@@ -81,14 +93,41 @@ func TestSendAggregate(t *testing.T) {
 	if publisher.msg == nil {
 		t.Fatal("expected message to be published")
 	}
+	if publisher.msg.Source != contract.DispatchSourceAggregate {
+		t.Fatalf("expected aggregate source, got %s", publisher.msg.Source)
+	}
+	if publisher.msg.RetryCount != 0 {
+		t.Fatalf("expected retry_count=0, got %d", publisher.msg.RetryCount)
+	}
+	if publisher.msg.MessageID == "" {
+		t.Fatal("expected message_id")
+	}
+	if publisher.msg.IdempotencyKey != "aggregate:t_1:send_test_aggregate:"+windowStart.Format(time.RFC3339Nano)+":"+windowEnd.Format(time.RFC3339Nano) {
+		t.Fatalf("unexpected idempotency_key: %s", publisher.msg.IdempotencyKey)
+	}
+	if !publisher.msg.CreatedAt.Equal(now) {
+		t.Fatalf("unexpected created_at: %v", publisher.msg.CreatedAt)
+	}
+	if !publisher.msg.ExpectedSendAt.Equal(now) {
+		t.Fatalf("unexpected expected_send_at: %v", publisher.msg.ExpectedSendAt)
+	}
+	if !publisher.msg.ExpireAt.Equal(now.Add(30 * time.Minute)) {
+		t.Fatalf("unexpected expire_at: %v", publisher.msg.ExpireAt)
+	}
 }
 
 func TestSendRealtime(t *testing.T) {
 	realtimeHandler.realtimeCalled = false
+	realtimeHandler.idempotencyCalled = false
+	realtimeHandler.bizIdempotencyKey = "biz-1"
+	now := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
 
 	publisher := &stubPublisher{}
 	dispatcher := NewDispatcher(Options{
 		Publisher: publisher,
+		Now: func() time.Time {
+			return now
+		},
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
 				"t_2": {
@@ -105,8 +144,67 @@ func TestSendRealtime(t *testing.T) {
 	if !realtimeHandler.realtimeCalled {
 		t.Fatal("expected realtime handler to be called")
 	}
+	if !realtimeHandler.idempotencyCalled {
+		t.Fatal("expected realtime idempotency key to be called")
+	}
 	if publisher.msg == nil {
 		t.Fatal("expected message to be published")
+	}
+	if publisher.msg.Source != contract.DispatchSourceRealtime {
+		t.Fatalf("expected realtime source, got %s", publisher.msg.Source)
+	}
+	if publisher.msg.RetryCount != 0 {
+		t.Fatalf("expected retry_count=0, got %d", publisher.msg.RetryCount)
+	}
+	if publisher.msg.MessageID == "" {
+		t.Fatal("expected message_id")
+	}
+	if publisher.msg.IdempotencyKey != "realtime:t_2:send_test_realtime:biz-1" {
+		t.Fatalf("unexpected idempotency_key: %s", publisher.msg.IdempotencyKey)
+	}
+	if !publisher.msg.CreatedAt.Equal(now) {
+		t.Fatalf("unexpected created_at: %v", publisher.msg.CreatedAt)
+	}
+	if !publisher.msg.ExpectedSendAt.Equal(now) {
+		t.Fatalf("unexpected expected_send_at: %v", publisher.msg.ExpectedSendAt)
+	}
+	if !publisher.msg.ExpireAt.Equal(now.Add(5 * time.Minute)) {
+		t.Fatalf("unexpected expire_at: %v", publisher.msg.ExpireAt)
+	}
+}
+
+func TestSendRealtimeRequiresBizIdempotencyKey(t *testing.T) {
+	realtimeHandler.realtimeCalled = false
+	realtimeHandler.idempotencyCalled = false
+	realtimeHandler.bizIdempotencyKey = ""
+	defer func() {
+		realtimeHandler.bizIdempotencyKey = "biz-1"
+	}()
+
+	publisher := &stubPublisher{}
+	dispatcher := NewDispatcher(Options{
+		Publisher: publisher,
+		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
+			return map[string]map[string]json.RawMessage{
+				"t_2": {
+					"send_test_realtime": json.RawMessage(`{"enabled":true,"realtime_filter":{"x":"y"}}`),
+				},
+			}, nil
+		},
+	})
+
+	err := dispatcher.SendRealtime(context.Background(), "t_2", "send_test_realtime", json.RawMessage(`{"event":1}`))
+	if err == nil {
+		t.Fatal("expected SendRealtime to fail")
+	}
+	if !errors.Is(err, contract.ErrInvalidRequest) {
+		t.Fatalf("expected ErrInvalidRequest, got %v", err)
+	}
+	if publisher.msg != nil {
+		t.Fatal("did not expect message to be published")
+	}
+	if !realtimeHandler.idempotencyCalled {
+		t.Fatal("expected realtime idempotency key to be called")
 	}
 }
 

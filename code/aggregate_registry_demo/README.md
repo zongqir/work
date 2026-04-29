@@ -81,10 +81,12 @@
 - `MustRegister()`：业务方自己显式注册
 - `Aggregate(...)`：业务方自己完成聚合并返回结果
 - `Evaluate(...)`：业务方自己完成实时筛选并返回结果
+- `RealtimeIdempotencyKey(...)`：业务方自己返回实时幂等 key
 - `BizAggregateRequest`：聚合请求
 - `RealtimeRequest`：实时请求
 - `RealtimeDecision`：实时判断结果
 - `DispatchMessage`：最终要分发的消息载体
+  自带 `message_id / idempotency_key / source / retry_count / created_at / expected_send_at / expire_at`
 - `ErrInvalidRequest`：请求非法
 - `ErrUnsupportedConfig`：配置不支持
 - `ErrTemporaryFailure`：临时失败，可由调用方决定是否重试
@@ -130,6 +132,9 @@ dispatcher := bootstrap.NewWithRuntime(runtime.Options{...})
 - 平台根据 `message_type` 找到对应业务实现
 - 默认发布口径可以是 MQ，不绑定数据库
 - `PulsarPublisher` 负责复用长生命周期 producer，不重复构建
+- 聚合消息默认 `30m` 过期，实时消息默认 `5m` 过期
+- 实时幂等 key 由业务 `RealtimeIdempotencyKey(...)` 返回
+- 聚合幂等 key 由平台按 `tenant_id + message_type + window_start + window_end` 生成
 
 实时场景口径：
 
@@ -146,6 +151,14 @@ dispatcher := bootstrap.NewWithRuntime(runtime.Options{...})
 - 同样先从缓存里取这个租户这个 `message_type` 对应的配置
 - 然后走业务方实现的 `Aggregate(...)`
 - 拿到结果后直接发出去
+
+消费发送入口统一放在 `consumer/`：
+
+- `Consumer.Consume(...)` 只做消费后的发送链路
+- 成功：写成功记录
+- 失败且还能重试：投递延期消息
+- 超过重试次数：写最终失败记录
+- 过期：直接写过期记录，不再发送
 
 正式业务实现统一放在 `handlers/`：
 

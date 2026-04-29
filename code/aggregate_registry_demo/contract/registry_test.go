@@ -25,6 +25,9 @@ func (stubHandler) Aggregate(_ context.Context, _ *BizAggregateRequest) (*messag
 func (stubHandler) Evaluate(_ context.Context, _ *RealtimeRequest) (*RealtimeDecision, error) {
 	return &RealtimeDecision{Matched: false}, nil
 }
+func (stubHandler) RealtimeIdempotencyKey(_ context.Context, _ *RealtimeRequest) (string, error) {
+	return "", nil
+}
 
 func TestResolveNotFound(t *testing.T) {
 	resetRegistryForTest()
@@ -80,4 +83,7 @@ func (s stubHandlerWithType) Aggregate(_ context.Context, _ *BizAggregateRequest
 }
 func (s stubHandlerWithType) Evaluate(_ context.Context, _ *RealtimeRequest) (*RealtimeDecision, error) {
 	return &RealtimeDecision{Matched: true}, nil
+}
+func (s stubHandlerWithType) RealtimeIdempotencyKey(_ context.Context, _ *RealtimeRequest) (string, error) {
+	return "biz", nil
 }

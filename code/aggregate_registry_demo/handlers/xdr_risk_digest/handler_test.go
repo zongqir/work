@@ -33,3 +33,15 @@ func TestHandlerEvaluate(t *testing.T) {
 		t.Fatal("expected biz_vars map")
 	}
 }
+
+func TestHandlerRealtimeIdempotencyKey(t *testing.T) {
+	h := New()
+
+	key, err := h.RealtimeIdempotencyKey(context.Background(), &contract.RealtimeRequest{})
+	if err != nil {
+		t.Fatalf("RealtimeIdempotencyKey failed: %v", err)
+	}
+	if key == "" {
+		t.Fatal("expected idempotency key")
+	}
+}
