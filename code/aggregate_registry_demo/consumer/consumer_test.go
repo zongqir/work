@@ -187,6 +187,36 @@ func TestConsumeFinalFailure(t *testing.T) {
 	}
 }
 
+func TestConsumeThirdRetryStillPublishes(t *testing.T) {
+	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
+	retryPublisher := &stubRetryPublisher{}
+	c := New(Options{
+		Sender: &stubSender{
+			err: errors.New("send failed"),
+		},
+		RetryPublisher: retryPublisher,
+		Recorder:       &stubRecorder{},
+		MaxRetry:       DefaultMaxRetry,
+		Now: func() time.Time {
+			return now
+		},
+	})
+
+	msg := newMessage(now)
+	msg.RetryCount = 2
+
+	err := c.Consume(context.Background(), msg)
+	if err != nil {
+		t.Fatalf("Consume failed: %v", err)
+	}
+	if retryPublisher.msg == nil {
+		t.Fatal("expected retry message to be published")
+	}
+	if retryPublisher.msg.RetryCount != 3 {
+		t.Fatalf("expected retry_count=3, got %d", retryPublisher.msg.RetryCount)
+	}
+}
+
 func newMessage(createdAt time.Time) *contract.DispatchMessage {
 	return &contract.DispatchMessage{
 		MessageID:      "m_1",

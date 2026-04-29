@@ -23,9 +23,10 @@ type Recorder interface {
 type Status string
 
 const (
-	StatusSuccess Status = "success"
-	StatusFailed  Status = "failed"
-	StatusExpired Status = "expired"
+	StatusSuccess   Status = "success"
+	StatusFailed    Status = "failed"
+	StatusExpired   Status = "expired"
+	DefaultMaxRetry        = 3
 )
 
 type SendRecord struct {
@@ -82,6 +83,43 @@ func (c *Consumer) Consume(ctx context.Context, msg *contract.DispatchMessage) e
 	if c.Recorder == nil {
 		return fmt.Errorf("%w: recorder is required", contract.ErrInvalidRequest)
 	}
+	if err := validateMessage(msg); err != nil {
+		return err
+	}
+
+	now := time.Now
+	if c.Now != nil {
+		now = c.Now
+	}
+	current := now()
+
+	if current.Before(msg.ExpectedSendAt) {
+		return c.publish(ctx, msg, false)
+	}
+	if current.After(msg.ExpireAt) {
+		return c.saveRecord(ctx, msg, StatusExpired, "")
+	}
+	if err := c.Sender.Send(ctx, msg); err != nil {
+		maxRetry := c.MaxRetry
+		if maxRetry <= 0 {
+			maxRetry = DefaultMaxRetry
+		}
+		if msg.RetryCount < maxRetry {
+			if retryErr := c.publish(ctx, msg, true); retryErr != nil {
+				return retryErr
+			}
+			if c.LogError != nil {
+				c.LogError(ctx, "send message failed and moved to retry", err)
+			}
+			return nil
+		}
+		return c.saveRecord(ctx, msg, StatusFailed, err.Error())
+	}
+
+	return c.saveRecord(ctx, msg, StatusSuccess, "")
+}
+
+func validateMessage(msg *contract.DispatchMessage) error {
 	if msg == nil {
 		return fmt.Errorf("%w: dispatch message is nil", contract.ErrInvalidRequest)
 	}
@@ -106,37 +144,7 @@ func (c *Consumer) Consume(ctx context.Context, msg *contract.DispatchMessage) e
 	if msg.ExpireAt.IsZero() {
 		return fmt.Errorf("%w: expire_at is required", contract.ErrInvalidRequest)
 	}
-
-	now := time.Now
-	if c.Now != nil {
-		now = c.Now
-	}
-	current := now()
-
-	if current.Before(msg.ExpectedSendAt) {
-		return c.publish(ctx, msg, false)
-	}
-	if current.After(msg.ExpireAt) {
-		return c.saveRecord(ctx, msg, StatusExpired, "")
-	}
-	if err := c.Sender.Send(ctx, msg); err != nil {
-		maxRetry := c.MaxRetry
-		if maxRetry <= 0 {
-			maxRetry = 3
-		}
-		if msg.RetryCount < maxRetry {
-			if retryErr := c.publish(ctx, msg, true); retryErr != nil {
-				return retryErr
-			}
-			if c.LogError != nil {
-				c.LogError(ctx, "send message failed and moved to retry", err)
-			}
-			return nil
-		}
-		return c.saveRecord(ctx, msg, StatusFailed, err.Error())
-	}
-
-	return c.saveRecord(ctx, msg, StatusSuccess, "")
+	return nil
 }
 
 func (c *Consumer) publish(ctx context.Context, msg *contract.DispatchMessage, incrementRetry bool) error {
