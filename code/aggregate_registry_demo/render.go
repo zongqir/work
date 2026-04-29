@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"text/template"
 	"time"
 
 	"notes/code/aggregate_registry_demo/messages"
@@ -91,11 +90,14 @@ func loadEffectivePolicy(path string) (*EffectivePolicy, error) {
 }
 
 func BuildMessageRenderInput(req *BizAggregateRequest, result *messages.BizAggregateResult) (MessageRenderInput, error) {
-	if result.MessageType == "" {
-		return MessageRenderInput{}, fmt.Errorf("message_type is required")
+	if req == nil {
+		return MessageRenderInput{}, fmt.Errorf("%w: aggregate request is required", ErrInvalidRequest)
+	}
+	if result == nil {
+		return MessageRenderInput{}, fmt.Errorf("%w: aggregate result is required", ErrInvalidRequest)
 	}
 	if len(result.BizVars) == 0 {
-		return MessageRenderInput{}, fmt.Errorf("biz_vars is required")
+		return MessageRenderInput{}, fmt.Errorf("%w: biz_vars is required", ErrInvalidRequest)
 	}
 
 	bizVars := make(messages.TemplateVars, len(result.BizVars))
@@ -115,11 +117,20 @@ func BuildMessageRenderInput(req *BizAggregateRequest, result *messages.BizAggre
 }
 
 func RenderByPolicy(req *BizAggregateRequest, result *messages.BizAggregateResult, policy *EffectivePolicy, templateRoot string) ([]RenderedChannelMessage, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w: aggregate request is required", ErrInvalidRequest)
+	}
+	if result == nil {
+		return nil, fmt.Errorf("%w: aggregate result is required", ErrInvalidRequest)
+	}
+	if policy == nil {
+		return nil, fmt.Errorf("%w: effective policy is required", ErrInvalidRequest)
+	}
 	if policy.TenantID != req.TenantID {
 		return nil, fmt.Errorf("policy tenant_id mismatch: %s", policy.TenantID)
 	}
-	if policy.MessageType != result.MessageType {
-		return nil, fmt.Errorf("policy message_type mismatch: %s", policy.MessageType)
+	if policy.MessageType == "" {
+		return nil, fmt.Errorf("%w: policy message_type is required", ErrInvalidRequest)
 	}
 
 	input, err := BuildMessageRenderInput(req, result)
@@ -142,11 +153,19 @@ func RenderByPolicy(req *BizAggregateRequest, result *messages.BizAggregateResul
 func renderChannel(input MessageRenderInput, policy ChannelPolicy, templateRoot string) (RenderedChannelMessage, error) {
 	switch policy.Channel {
 	case "email":
-		subject, err := renderTextTemplate(filepath.Join(templateRoot, "email", policy.TemplateCode+".subject.tmpl"), input.Vars)
+		subjectPath, err := templatePath(templateRoot, "email", policy.TemplateCode+".subject.tmpl")
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
-		body, err := renderTextTemplate(filepath.Join(templateRoot, "email", policy.TemplateCode+".body.tmpl"), input.Vars)
+		subject, err := renderTextTemplate(subjectPath, input.Vars)
+		if err != nil {
+			return RenderedChannelMessage{}, err
+		}
+		bodyPath, err := templatePath(templateRoot, "email", policy.TemplateCode+".body.tmpl")
+		if err != nil {
+			return RenderedChannelMessage{}, err
+		}
+		body, err := renderTextTemplate(bodyPath, input.Vars)
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
@@ -158,7 +177,11 @@ func renderChannel(input MessageRenderInput, policy ChannelPolicy, templateRoot 
 			},
 		}, nil
 	case "webhook":
-		content, err := renderTextTemplate(filepath.Join(templateRoot, "webhook", policy.TemplateCode+".tmpl"), input.Vars)
+		contentPath, err := templatePath(templateRoot, "webhook", policy.TemplateCode+".tmpl")
+		if err != nil {
+			return RenderedChannelMessage{}, err
+		}
+		content, err := renderTextTemplate(contentPath, input.Vars)
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
@@ -179,6 +202,23 @@ func renderChannel(input MessageRenderInput, policy ChannelPolicy, templateRoot 
 	default:
 		return RenderedChannelMessage{}, fmt.Errorf("unsupported channel: %s", policy.Channel)
 	}
+}
+
+func templatePath(templateRoot, channelDir, templateName string) (string, error) {
+	if templateName == "" {
+		return "", fmt.Errorf("%w: template name is required", ErrInvalidRequest)
+	}
+
+	channelRoot := filepath.Clean(filepath.Join(templateRoot, channelDir))
+	fullPath := filepath.Clean(filepath.Join(channelRoot, templateName))
+	rel, err := filepath.Rel(channelRoot, fullPath)
+	if err != nil {
+		return "", fmt.Errorf("resolve template path failed: %w", err)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("%w: template path escapes channel root", ErrInvalidRequest)
+	}
+	return fullPath, nil
 }
 
 func buildSMSParams(input MessageRenderInput) map[string]string {
@@ -255,16 +295,9 @@ func buildSMSParams(input MessageRenderInput) map[string]string {
 }
 
 func renderTextTemplate(templatePath string, input any) (string, error) {
-	data, err := os.ReadFile(templatePath)
+	tmpl, err := defaultTemplateCache.get(templatePath)
 	if err != nil {
-		return "", fmt.Errorf("read template failed: %w", err)
-	}
-
-	tmpl, err := template.New(filepath.Base(templatePath)).
-		Option("missingkey=error").
-		Parse(string(data))
-	if err != nil {
-		return "", fmt.Errorf("parse template failed: %w", err)
+		return "", fmt.Errorf("load template failed: %w", err)
 	}
 
 	var buf bytes.Buffer

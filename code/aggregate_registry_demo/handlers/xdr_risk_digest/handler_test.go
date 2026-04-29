@@ -14,9 +14,6 @@ func TestHandlerAggregate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Aggregate failed: %v", err)
 	}
-	if result.MessageType != h.MessageType() {
-		t.Fatalf("unexpected message_type: %s", result.MessageType)
-	}
 	if result.BizVars == nil {
 		t.Fatal("expected biz_vars map")
 	}

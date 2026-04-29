@@ -10,16 +10,25 @@ import (
 
 type stubHandler struct{}
 
+func resetRegistryForTest() {
+	registryMu.Lock()
+	defer registryMu.Unlock()
+	registeredHandlers = map[string]Handler{}
+	registryFrozen = false
+}
+
 func (stubHandler) MessageType() string { return "stub" }
 func (stubHandler) MustRegister()       {}
 func (stubHandler) Aggregate(_ context.Context, _ *BizAggregateRequest) (*messages.BizAggregateResult, error) {
-	return &messages.BizAggregateResult{MessageType: "stub", BizVars: messages.TemplateVars{}}, nil
+	return &messages.BizAggregateResult{BizVars: messages.TemplateVars{}}, nil
 }
 func (stubHandler) Evaluate(_ context.Context, _ *RealtimeRequest) (*RealtimeDecision, error) {
 	return &RealtimeDecision{Matched: false}, nil
 }
 
 func TestResolveNotFound(t *testing.T) {
+	resetRegistryForTest()
+
 	_, err := Resolve("missing")
 	if !errors.Is(err, ErrAggregatorNotFound) {
 		t.Fatalf("expected ErrAggregatorNotFound, got %v", err)
@@ -27,6 +36,8 @@ func TestResolveNotFound(t *testing.T) {
 }
 
 func TestMustRegisterAndResolve(t *testing.T) {
+	resetRegistryForTest()
+
 	handler := stubHandlerWithType("stub_for_test")
 	MustRegister(handler)
 
@@ -39,9 +50,25 @@ func TestMustRegisterAndResolve(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Aggregate failed: %v", err)
 	}
-	if result.MessageType != "stub" {
-		t.Fatalf("unexpected message type: %s", result.MessageType)
+	if result == nil {
+		t.Fatal("expected aggregate result")
 	}
+}
+
+func TestRegistryFrozenAfterResolve(t *testing.T) {
+	resetRegistryForTest()
+
+	MustRegister(stubHandlerWithType("stub_before_freeze"))
+	if _, err := Resolve("stub_before_freeze"); err != nil {
+		t.Fatalf("Resolve failed: %v", err)
+	}
+
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic after registry is frozen")
+		}
+	}()
+	MustRegister(stubHandlerWithType("stub_after_freeze"))
 }
 
 type stubHandlerWithType string
@@ -49,7 +76,7 @@ type stubHandlerWithType string
 func (s stubHandlerWithType) MessageType() string { return string(s) }
 func (s stubHandlerWithType) MustRegister()       {}
 func (s stubHandlerWithType) Aggregate(_ context.Context, _ *BizAggregateRequest) (*messages.BizAggregateResult, error) {
-	return &messages.BizAggregateResult{MessageType: "stub", BizVars: messages.TemplateVars{}}, nil
+	return &messages.BizAggregateResult{BizVars: messages.TemplateVars{}}, nil
 }
 func (s stubHandlerWithType) Evaluate(_ context.Context, _ *RealtimeRequest) (*RealtimeDecision, error) {
 	return &RealtimeDecision{Matched: true}, nil

@@ -30,8 +30,7 @@ func (h *Handler) MessageType() string {
 func (h *Handler) Aggregate(_ context.Context, req *core.BizAggregateRequest) (*messages.BizAggregateResult, error) {
 	_ = req
 	return &messages.BizAggregateResult{
-		MessageType: h.MessageType(),
-		BizVars:     messages.TemplateVars{
+		BizVars: messages.TemplateVars{
 			// business fills vars here
 		},
 	}, nil

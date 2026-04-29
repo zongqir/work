@@ -16,6 +16,7 @@ type MessagePublisher interface {
 type Dispatcher struct {
 	Publisher MessagePublisher
 	LoadAll   func(ctx context.Context) (map[string]map[string]json.RawMessage, error)
+	LogError  func(ctx context.Context, msg string, err error)
 
 	cache configCache
 }
@@ -107,7 +108,7 @@ func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) 
 		return nil, nil, err
 	}
 
-	configBody, err := d.cache.pick(ctx, tenantID, messageType, d.LoadAll)
+	configBody, err := d.cache.pick(ctx, tenantID, messageType, d.LoadAll, d.LogError)
 	if err != nil {
 		return nil, nil, err
 	}

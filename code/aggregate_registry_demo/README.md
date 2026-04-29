@@ -4,7 +4,7 @@
 
 - AES 定义聚合请求和返回协议
 - 业务方实现 `Handler` 接口
-- 业务结果返回 `message_type + biz_vars`
+- 业务结果只返回 `biz_vars`
 - 平台根据请求上下文补 `system_vars`，例如 `window_label`
 - 渲染模板时统一包装成 `.biz` 和 `.sys`
 - 渠道不由业务结果定义，而是由生效策略决定
@@ -33,7 +33,6 @@
 
 ```json
 {
-  "message_type": "xdr_risk_digest",
   "biz_vars": {
     "total_count": "23",
     "category_count": "3",
@@ -69,7 +68,7 @@
 
 当前职责拆分：
 
-- `message_type + biz_vars` 由业务聚合侧负责
+- `biz_vars` 由业务聚合侧负责
 - `system_vars` 由通知平台负责
 - `tenant_id + message_type -> channels` 由通知配置侧负责
 - `email` 和 `webhook` 走本地模板资产
@@ -100,6 +99,7 @@
 - 两个方法内部走同一套分发流程
 - 平台根据 `message_type` 找到对应业务实现
 - 默认发布口径可以是 MQ，不绑定数据库
+- `PulsarPublisher` 负责复用长生命周期 producer，不重复构建
 
 实时场景口径：
 
@@ -134,7 +134,7 @@
 这种方式的作用是：
 
 - 避免新增实现时忘记手动改注册表
-- `message_type` 由实现自己声明，不需要在外部重复写一遍
+- `message_type` 由实现自己声明，不需要在聚合结果里重复返回
 - 聚合和实时统一收口到一个 handler 文件里
 
 需要注意：
@@ -147,6 +147,7 @@
 - 上游协议保持简单，不需要传 `biz.xxx`
 - 模板边界清晰，不会和系统变量混在一起
 - 后续系统变量增加时，只需要往 `.sys` 里补
+- 模板编译结果会走内存缓存，不重复 `ReadFile + Parse`
 
 当前目录结构：
 
@@ -161,6 +162,8 @@ code/aggregate_registry_demo/
   dispatcher.go
   registry_test.go
   dispatcher_test.go
+  pulsar_publisher.go
+  template_cache.go
   render.go
   sample_request.json
   sample_result.json

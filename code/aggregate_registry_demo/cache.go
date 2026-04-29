@@ -9,8 +9,9 @@ import (
 )
 
 type configCache struct {
-	TTL      time.Duration
-	MaxStale time.Duration
+	TTL            time.Duration
+	MaxStale       time.Duration
+	RefreshTimeout time.Duration
 
 	now func() time.Time
 	mu  sync.RWMutex
@@ -20,7 +21,12 @@ type configCache struct {
 	refreshing bool
 }
 
-func (c *configCache) pick(ctx context.Context, tenantID, messageType string, loadAll func(context.Context) (map[string]map[string]json.RawMessage, error)) (json.RawMessage, error) {
+func (c *configCache) pick(
+	ctx context.Context,
+	tenantID, messageType string,
+	loadAll func(context.Context) (map[string]map[string]json.RawMessage, error),
+	logError func(context.Context, string, error),
+) (json.RawMessage, error) {
 	if c == nil {
 		return nil, nil
 	}
@@ -51,6 +57,10 @@ func (c *configCache) pick(ctx context.Context, tenantID, messageType string, lo
 	if maxStale <= 0 {
 		maxStale = 30 * time.Minute
 	}
+	refreshTimeout := c.RefreshTimeout
+	if refreshTimeout <= 0 {
+		refreshTimeout = 10 * time.Second
+	}
 
 	age := now.Sub(loadedAt)
 	if items == nil || loadedAt.IsZero() || age >= maxStale {
@@ -69,12 +79,17 @@ func (c *configCache) pick(ctx context.Context, tenantID, messageType string, lo
 		if !c.refreshing {
 			c.refreshing = true
 			go func() {
-				all, err := loadAll(context.Background())
+				refreshCtx, cancel := context.WithTimeout(context.Background(), refreshTimeout)
+				defer cancel()
+
+				all, err := loadAll(refreshCtx)
 				c.mu.Lock()
 				defer c.mu.Unlock()
 				if err == nil {
 					c.items = all
 					c.loadedAt = nowFn()
+				} else if logError != nil {
+					logError(refreshCtx, "refresh config cache failed", err)
 				}
 				c.refreshing = false
 			}()

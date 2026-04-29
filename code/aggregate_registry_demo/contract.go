@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"notes/code/aggregate_registry_demo/messages"
@@ -17,7 +18,9 @@ var (
 	ErrAggregatorNotFound = errors.New("aggregator not found")
 )
 
+var registryMu sync.RWMutex
 var registeredHandlers = map[string]Handler{}
+var registryFrozen bool
 
 // BizAggregateRequest 是发给业务方聚合接口的请求。
 // 这里只保留平台自己需要的上下文，例如 tenant_id 和查询条件。
@@ -64,6 +67,11 @@ func MustRegister(handler Handler) {
 	if messageType == "" {
 		panic(fmt.Errorf("%w: message_type is required", ErrInvalidRequest))
 	}
+	registryMu.Lock()
+	defer registryMu.Unlock()
+	if registryFrozen {
+		panic(fmt.Errorf("%w: registry is frozen", ErrInvalidRequest))
+	}
 	if _, exists := registeredHandlers[messageType]; exists {
 		panic(fmt.Errorf("%w: duplicate handler for %s", ErrInvalidRequest, messageType))
 	}
@@ -76,6 +84,9 @@ func Resolve(messageType string) (Handler, error) {
 		return nil, fmt.Errorf("%w: message_type is required", ErrInvalidRequest)
 	}
 
+	registryMu.Lock()
+	defer registryMu.Unlock()
+	registryFrozen = true
 	handler, ok := registeredHandlers[messageType]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrAggregatorNotFound, messageType)

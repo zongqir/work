@@ -3,6 +3,7 @@ package aggregate
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -29,7 +30,6 @@ func (h *stubSendHandler) MustRegister()       {}
 func (h *stubSendHandler) Aggregate(_ context.Context, req *BizAggregateRequest) (*messages.BizAggregateResult, error) {
 	h.aggregateCalled = true
 	return &messages.BizAggregateResult{
-		MessageType: h.MessageType(),
 		BizVars: messages.TemplateVars{
 			"config": string(req.ConfigBody),
 		},
@@ -46,6 +46,8 @@ func (h *stubSendHandler) Evaluate(_ context.Context, req *RealtimeRequest) (*Re
 }
 
 func TestSendAggregate(t *testing.T) {
+	resetRegistryForTest()
+
 	handler := &stubSendHandler{messageType: "send_test_aggregate"}
 	MustRegister(handler)
 
@@ -74,6 +76,8 @@ func TestSendAggregate(t *testing.T) {
 }
 
 func TestSendRealtime(t *testing.T) {
+	resetRegistryForTest()
+
 	handler := &stubSendHandler{messageType: "send_test_realtime"}
 	MustRegister(handler)
 
@@ -98,5 +102,49 @@ func TestSendRealtime(t *testing.T) {
 	}
 	if publisher.msg == nil {
 		t.Fatal("expected message to be published")
+	}
+}
+
+func TestConfigCacheAsyncRefreshLogsError(t *testing.T) {
+	done := make(chan struct{}, 1)
+	cache := configCache{
+		TTL:      5 * time.Minute,
+		MaxStale: 30 * time.Minute,
+		now: func() time.Time {
+			return time.Date(2026, 4, 29, 12, 10, 0, 0, time.UTC)
+		},
+		items: map[string]map[string]json.RawMessage{
+			"t_1": {
+				"send_test": json.RawMessage(`{"enabled":true}`),
+			},
+		},
+		loadedAt: time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC),
+	}
+
+	_, err := cache.pick(
+		context.Background(),
+		"t_1",
+		"send_test",
+		func(context.Context) (map[string]map[string]json.RawMessage, error) {
+			return nil, errors.New("load failed")
+		},
+		func(_ context.Context, msg string, err error) {
+			if msg != "refresh config cache failed" {
+				t.Fatalf("unexpected log message: %s", msg)
+			}
+			if err == nil {
+				t.Fatal("expected log error")
+			}
+			done <- struct{}{}
+		},
+	)
+	if err != nil {
+		t.Fatalf("pick failed: %v", err)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected async refresh error to be logged")
 	}
 }
