@@ -3,13 +3,13 @@ package xdrriskdigest
 import (
 	"context"
 
-	core "notes/code/aggregate_registry_demo"
+	"notes/code/aggregate_registry_demo/contract"
 	"notes/code/aggregate_registry_demo/messages"
 )
 
 type Handler struct{}
 
-var _ core.Handler = (*Handler)(nil)
+var _ contract.Handler = (*Handler)(nil)
 
 func init() {
 	New().MustRegister()
@@ -20,14 +20,14 @@ func New() *Handler {
 }
 
 func (h *Handler) MustRegister() {
-	core.MustRegister(h)
+	contract.MustRegister(h)
 }
 
 func (h *Handler) MessageType() string {
 	return "xdr_risk_digest"
 }
 
-func (h *Handler) Aggregate(_ context.Context, req *core.BizAggregateRequest) (*messages.BizAggregateResult, error) {
+func (h *Handler) Aggregate(_ context.Context, req *contract.BizAggregateRequest) (*messages.BizAggregateResult, error) {
 	_ = req
 	return &messages.BizAggregateResult{
 		BizVars: messages.TemplateVars{
@@ -36,9 +36,9 @@ func (h *Handler) Aggregate(_ context.Context, req *core.BizAggregateRequest) (*
 	}, nil
 }
 
-func (h *Handler) Evaluate(_ context.Context, req *core.RealtimeRequest) (*core.RealtimeDecision, error) {
+func (h *Handler) Evaluate(_ context.Context, req *contract.RealtimeRequest) (*contract.RealtimeDecision, error) {
 	_ = req
-	return &core.RealtimeDecision{
+	return &contract.RealtimeDecision{
 		Matched: true,
 		BizVars: messages.TemplateVars{
 			// business fills vars here

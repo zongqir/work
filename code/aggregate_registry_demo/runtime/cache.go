@@ -1,4 +1,4 @@
-package aggregate
+package runtime
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"notes/code/aggregate_registry_demo/contract"
 )
 
 type configCache struct {
@@ -34,7 +36,7 @@ func (c *configCache) pick(
 		return nil, nil
 	}
 	if loadAll == nil {
-		return nil, fmt.Errorf("%w: load_all is required", ErrInvalidRequest)
+		return nil, fmt.Errorf("%w: load_all is required", contract.ErrInvalidRequest)
 	}
 
 	nowFn := c.now

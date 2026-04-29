@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"os"
 
-	core "notes/code/aggregate_registry_demo"
+	"notes/code/aggregate_registry_demo/contract"
 	"notes/code/aggregate_registry_demo/messages"
+	"notes/code/aggregate_registry_demo/runtime"
 )
 
 type Result struct {
-	TemplateContext map[string]any                `json:"template_context,omitempty"`
-	Rendered        []core.RenderedChannelMessage `json:"rendered"`
+	TemplateContext map[string]any                   `json:"template_context,omitempty"`
+	Rendered        []runtime.RenderedChannelMessage `json:"rendered"`
 }
 
 func FromFiles(requestPath, resultPath, policyPath, templateRoot string, showContext bool) (*Result, error) {
@@ -29,12 +30,12 @@ func FromFiles(requestPath, resultPath, policyPath, templateRoot string, showCon
 		return nil, err
 	}
 
-	input, err := core.BuildMessageRenderInput(req, result)
+	input, err := runtime.BuildMessageRenderInput(req, result)
 	if err != nil {
 		return nil, err
 	}
 
-	rendered, err := core.RenderByPolicy(req, result, policy, templateRoot)
+	rendered, err := runtime.RenderByPolicy(req, result, policy, templateRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -57,13 +58,13 @@ func Marshal(result *Result) ([]byte, error) {
 	return json.MarshalIndent(result, "", "  ")
 }
 
-func loadRequest(path string) (*core.BizAggregateRequest, error) {
+func loadRequest(path string) (*contract.BizAggregateRequest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var req core.BizAggregateRequest
+	var req contract.BizAggregateRequest
 	if err := json.Unmarshal(data, &req); err != nil {
 		return nil, err
 	}
@@ -83,13 +84,13 @@ func loadResult(path string) (*messages.BizAggregateResult, error) {
 	return &result, nil
 }
 
-func loadPolicy(path string) (*core.EffectivePolicy, error) {
+func loadPolicy(path string) (*runtime.EffectivePolicy, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var policy core.EffectivePolicy
+	var policy runtime.EffectivePolicy
 	if err := json.Unmarshal(data, &policy); err != nil {
 		return nil, err
 	}

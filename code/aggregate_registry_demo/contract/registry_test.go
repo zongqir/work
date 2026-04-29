@@ -1,4 +1,4 @@
-package aggregate
+package contract
 
 import (
 	"context"

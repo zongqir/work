@@ -4,13 +4,13 @@ import (
 	"context"
 	"testing"
 
-	core "notes/code/aggregate_registry_demo"
+	"notes/code/aggregate_registry_demo/contract"
 )
 
 func TestHandlerAggregate(t *testing.T) {
 	h := New()
 
-	result, err := h.Aggregate(context.Background(), &core.BizAggregateRequest{})
+	result, err := h.Aggregate(context.Background(), &contract.BizAggregateRequest{})
 	if err != nil {
 		t.Fatalf("Aggregate failed: %v", err)
 	}
@@ -22,7 +22,7 @@ func TestHandlerAggregate(t *testing.T) {
 func TestHandlerEvaluate(t *testing.T) {
 	h := New()
 
-	decision, err := h.Evaluate(context.Background(), &core.RealtimeRequest{})
+	decision, err := h.Evaluate(context.Background(), &contract.RealtimeRequest{})
 	if err != nil {
 		t.Fatalf("Evaluate failed: %v", err)
 	}

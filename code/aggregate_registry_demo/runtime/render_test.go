@@ -1,4 +1,4 @@
-package aggregate
+package runtime
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"notes/code/aggregate_registry_demo/contract"
 	"notes/code/aggregate_registry_demo/messages"
 )
 
@@ -15,18 +16,18 @@ func TestBuildMessageRenderInputRejectsNil(t *testing.T) {
 	_, err := BuildMessageRenderInput(nil, &messages.BizAggregateResult{
 		BizVars: messages.TemplateVars{"k": "v"},
 	})
-	if !errors.Is(err, ErrInvalidRequest) {
+	if !errors.Is(err, contract.ErrInvalidRequest) {
 		t.Fatalf("expected ErrInvalidRequest for nil request, got %v", err)
 	}
 
-	_, err = BuildMessageRenderInput(&BizAggregateRequest{}, nil)
-	if !errors.Is(err, ErrInvalidRequest) {
+	_, err = BuildMessageRenderInput(&contract.BizAggregateRequest{}, nil)
+	if !errors.Is(err, contract.ErrInvalidRequest) {
 		t.Fatalf("expected ErrInvalidRequest for nil result, got %v", err)
 	}
 }
 
 func TestRenderByPolicyRejectsNil(t *testing.T) {
-	req := &BizAggregateRequest{TenantID: "t_1"}
+	req := &contract.BizAggregateRequest{TenantID: "t_1"}
 	result := &messages.BizAggregateResult{
 		BizVars: messages.TemplateVars{"total_count": "1"},
 	}
@@ -36,23 +37,23 @@ func TestRenderByPolicyRejectsNil(t *testing.T) {
 	}
 
 	_, err := RenderByPolicy(nil, result, policy, ".")
-	if !errors.Is(err, ErrInvalidRequest) {
+	if !errors.Is(err, contract.ErrInvalidRequest) {
 		t.Fatalf("expected ErrInvalidRequest for nil request, got %v", err)
 	}
 
 	_, err = RenderByPolicy(req, nil, policy, ".")
-	if !errors.Is(err, ErrInvalidRequest) {
+	if !errors.Is(err, contract.ErrInvalidRequest) {
 		t.Fatalf("expected ErrInvalidRequest for nil result, got %v", err)
 	}
 
 	_, err = RenderByPolicy(req, result, nil, ".")
-	if !errors.Is(err, ErrInvalidRequest) {
+	if !errors.Is(err, contract.ErrInvalidRequest) {
 		t.Fatalf("expected ErrInvalidRequest for nil policy, got %v", err)
 	}
 }
 
 func TestRenderByPolicyRejectsEscapingTemplatePath(t *testing.T) {
-	req := &BizAggregateRequest{TenantID: "t_1"}
+	req := &contract.BizAggregateRequest{TenantID: "t_1"}
 	result := &messages.BizAggregateResult{
 		BizVars: messages.TemplateVars{"total_count": "1"},
 	}
@@ -68,7 +69,7 @@ func TestRenderByPolicyRejectsEscapingTemplatePath(t *testing.T) {
 	}
 
 	_, err := RenderByPolicy(req, result, policy, filepath.Join("testdata", "templates"))
-	if !errors.Is(err, ErrInvalidRequest) {
+	if !errors.Is(err, contract.ErrInvalidRequest) {
 		t.Fatalf("expected ErrInvalidRequest for escaping template path, got %v", err)
 	}
 }

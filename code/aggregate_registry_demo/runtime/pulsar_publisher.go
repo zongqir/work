@@ -1,4 +1,4 @@
-package aggregate
+package runtime
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/apache/pulsar-client-go/pulsar"
+	"notes/code/aggregate_registry_demo/contract"
 )
 
 type PulsarPublisher struct {
@@ -18,10 +19,10 @@ type PulsarPublisher struct {
 
 func NewPulsarPublisher(client pulsar.Client, topic string) (*PulsarPublisher, error) {
 	if client == nil {
-		return nil, fmt.Errorf("%w: pulsar client is required", ErrInvalidRequest)
+		return nil, fmt.Errorf("%w: pulsar client is required", contract.ErrInvalidRequest)
 	}
 	if topic == "" {
-		return nil, fmt.Errorf("%w: topic is required", ErrInvalidRequest)
+		return nil, fmt.Errorf("%w: topic is required", contract.ErrInvalidRequest)
 	}
 
 	return &PulsarPublisher{
@@ -30,12 +31,12 @@ func NewPulsarPublisher(client pulsar.Client, topic string) (*PulsarPublisher, e
 	}, nil
 }
 
-func (p *PulsarPublisher) Publish(ctx context.Context, msg *DispatchMessage) error {
+func (p *PulsarPublisher) Publish(ctx context.Context, msg *contract.DispatchMessage) error {
 	if p == nil {
-		return fmt.Errorf("%w: pulsar publisher is required", ErrInvalidRequest)
+		return fmt.Errorf("%w: pulsar publisher is required", contract.ErrInvalidRequest)
 	}
 	if msg == nil {
-		return fmt.Errorf("%w: dispatch message is nil", ErrInvalidRequest)
+		return fmt.Errorf("%w: dispatch message is nil", contract.ErrInvalidRequest)
 	}
 
 	producer, err := p.getProducer()

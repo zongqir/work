@@ -1,16 +1,18 @@
-package aggregate
+package runtime
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"notes/code/aggregate_registry_demo/contract"
 )
 
 // MessagePublisher 由平台提供，负责把命中的实时结果发布出去。
 // 默认口径可以是发到 MQ，不承诺具体介质。
 type MessagePublisher interface {
-	Publish(ctx context.Context, msg *DispatchMessage) error
+	Publish(ctx context.Context, msg *contract.DispatchMessage) error
 }
 
 type Dispatcher struct {
@@ -27,6 +29,25 @@ type messageConfig struct {
 	RealtimeFilter  json.RawMessage `json:"realtime_filter"`
 }
 
+type Options struct {
+	Publisher     MessagePublisher
+	LoadAll       func(ctx context.Context) (map[string]map[string]json.RawMessage, error)
+	LogError      func(ctx context.Context, msg string, err error)
+	CacheTTL      time.Duration
+	CacheMaxStale time.Duration
+}
+
+func NewDispatcher(options Options) *Dispatcher {
+	d := &Dispatcher{
+		Publisher: options.Publisher,
+		LoadAll:   options.LoadAll,
+		LogError:  options.LogError,
+	}
+	d.cache.TTL = options.CacheTTL
+	d.cache.MaxStale = options.CacheMaxStale
+	return d
+}
+
 func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) error {
 	handler, config, err := d.prepare(ctx, tenantID, messageType)
 	if err != nil {
@@ -36,7 +57,7 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 		return nil
 	}
 
-	result, err := handler.Aggregate(ctx, &BizAggregateRequest{
+	result, err := handler.Aggregate(ctx, &contract.BizAggregateRequest{
 		TenantID:    tenantID,
 		WindowStart: windowStart,
 		WindowEnd:   windowEnd,
@@ -49,7 +70,7 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 		return nil
 	}
 
-	return d.Publisher.Publish(ctx, &DispatchMessage{
+	return d.Publisher.Publish(ctx, &contract.DispatchMessage{
 		TenantID:    tenantID,
 		MessageType: handler.MessageType(),
 		BizVars:     result.BizVars,
@@ -65,7 +86,7 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 		return nil
 	}
 
-	decision, err := handler.Evaluate(ctx, &RealtimeRequest{
+	decision, err := handler.Evaluate(ctx, &contract.RealtimeRequest{
 		TenantID:    tenantID,
 		FilterQuery: config.RealtimeFilter,
 		EventBody:   eventBody,
@@ -74,13 +95,13 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 		return err
 	}
 	if decision == nil {
-		return fmt.Errorf("%w: realtime decision is nil", ErrTemporaryFailure)
+		return fmt.Errorf("%w: realtime decision is nil", contract.ErrTemporaryFailure)
 	}
 	if !decision.Matched {
 		return nil
 	}
 
-	return d.Publisher.Publish(ctx, &DispatchMessage{
+	return d.Publisher.Publish(ctx, &contract.DispatchMessage{
 		TenantID:    tenantID,
 		MessageType: handler.MessageType(),
 		BizVars:     decision.BizVars,
@@ -88,22 +109,22 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 	})
 }
 
-func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) (Handler, *messageConfig, error) {
+func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) (contract.Handler, *messageConfig, error) {
 	if d == nil || d.Publisher == nil {
-		return nil, nil, fmt.Errorf("%w: message publisher is required", ErrInvalidRequest)
+		return nil, nil, fmt.Errorf("%w: message publisher is required", contract.ErrInvalidRequest)
 	}
 	if d.LoadAll == nil {
-		return nil, nil, fmt.Errorf("%w: load_all is required", ErrInvalidRequest)
+		return nil, nil, fmt.Errorf("%w: load_all is required", contract.ErrInvalidRequest)
 	}
 
 	if tenantID == "" {
-		return nil, nil, fmt.Errorf("%w: tenant_id is required", ErrInvalidRequest)
+		return nil, nil, fmt.Errorf("%w: tenant_id is required", contract.ErrInvalidRequest)
 	}
 	if messageType == "" {
-		return nil, nil, fmt.Errorf("%w: message_type is required", ErrInvalidRequest)
+		return nil, nil, fmt.Errorf("%w: message_type is required", contract.ErrInvalidRequest)
 	}
 
-	handler, err := Resolve(messageType)
+	handler, err := contract.Resolve(messageType)
 	if err != nil {
 		return nil, nil, err
 	}

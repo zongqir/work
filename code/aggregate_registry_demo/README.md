@@ -74,7 +74,7 @@
 - `email` 和 `webhook` 走本地模板资产
 - `sms` 直接使用 `templateCode + kv`
 
-生产级契约入口见 [contract.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/contract.go:1)：
+生产级契约入口见 [contract.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/contract/contract.go:1)：
 
 - `Handler`：业务方必须实现的最小接口
 - `MessageType()`：业务方自己定义消息标识
@@ -90,7 +90,7 @@
 - `ErrTemporaryFailure`：临时失败，可由调用方决定是否重试
 - `ErrAggregatorNotFound`：运行时没有找到对应 `message_type` 的实现
 
-统一分发入口见 [dispatcher.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/dispatcher.go:1)。
+统一分发入口见 [dispatcher.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/runtime/dispatcher.go:1)。
 
 分发口径：
 
@@ -123,9 +123,9 @@
 - 每个子目录只有一个 `handler.go`
 - 一个 `Handler` 同时实现：
   `MessageType()`、`MustRegister()`、`Aggregate(...)`、`Evaluate(...)`
-- 根包统一按 `message_type` 注册和查找
+- `contract` 包统一按 `message_type` 注册和查找
 
-共享契约统一放在 `contract.go` 根包里，不放进 `handlers/`。原因很简单：
+共享契约统一放在 `contract/` 目录里，不放进 `handlers/`。原因很简单：
 
 - 它描述的是 AES 和业务方共享的契约
 - 不是某个具体实现目录的私有代码
@@ -153,18 +153,15 @@
 
 ```text
 code/aggregate_registry_demo/
+  bootstrap/
+    bootstrap.go
+  contract/
+    contract.go
+    registry_test.go
   handlers/
     xdr_risk_digest/
       handler.go
       handler_test.go
-  cache.go
-  contract.go
-  dispatcher.go
-  registry_test.go
-  dispatcher_test.go
-  pulsar_publisher.go
-  template_cache.go
-  render.go
   sample_request.json
   sample_result.json
   sample_policy.json
@@ -173,6 +170,14 @@ code/aggregate_registry_demo/
   preview/
     preview.go
     preview_test.go
+  runtime/
+    cache.go
+    dispatcher.go
+    dispatcher_test.go
+    pulsar_publisher.go
+    render.go
+    render_test.go
+    template_cache.go
   templates/
     email/
       xdr_risk_digest_default.subject.tmpl

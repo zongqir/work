@@ -1,4 +1,4 @@
-package aggregate
+package runtime
 
 import (
 	"context"
@@ -7,14 +7,15 @@ import (
 	"testing"
 	"time"
 
+	"notes/code/aggregate_registry_demo/contract"
 	"notes/code/aggregate_registry_demo/messages"
 )
 
 type stubPublisher struct {
-	msg *DispatchMessage
+	msg *contract.DispatchMessage
 }
 
-func (p *stubPublisher) Publish(_ context.Context, msg *DispatchMessage) error {
+func (p *stubPublisher) Publish(_ context.Context, msg *contract.DispatchMessage) error {
 	p.msg = msg
 	return nil
 }
@@ -25,9 +26,19 @@ type stubSendHandler struct {
 	realtimeCalled  bool
 }
 
+var (
+	aggregateHandler = &stubSendHandler{messageType: "send_test_aggregate"}
+	realtimeHandler  = &stubSendHandler{messageType: "send_test_realtime"}
+)
+
+func init() {
+	contract.MustRegister(aggregateHandler)
+	contract.MustRegister(realtimeHandler)
+}
+
 func (h *stubSendHandler) MessageType() string { return h.messageType }
 func (h *stubSendHandler) MustRegister()       {}
-func (h *stubSendHandler) Aggregate(_ context.Context, req *BizAggregateRequest) (*messages.BizAggregateResult, error) {
+func (h *stubSendHandler) Aggregate(_ context.Context, req *contract.BizAggregateRequest) (*messages.BizAggregateResult, error) {
 	h.aggregateCalled = true
 	return &messages.BizAggregateResult{
 		BizVars: messages.TemplateVars{
@@ -35,9 +46,9 @@ func (h *stubSendHandler) Aggregate(_ context.Context, req *BizAggregateRequest)
 		},
 	}, nil
 }
-func (h *stubSendHandler) Evaluate(_ context.Context, req *RealtimeRequest) (*RealtimeDecision, error) {
+func (h *stubSendHandler) Evaluate(_ context.Context, req *contract.RealtimeRequest) (*contract.RealtimeDecision, error) {
 	h.realtimeCalled = true
-	return &RealtimeDecision{
+	return &contract.RealtimeDecision{
 		Matched: true,
 		BizVars: messages.TemplateVars{
 			"filter": string(req.FilterQuery),
@@ -46,13 +57,10 @@ func (h *stubSendHandler) Evaluate(_ context.Context, req *RealtimeRequest) (*Re
 }
 
 func TestSendAggregate(t *testing.T) {
-	resetRegistryForTest()
-
-	handler := &stubSendHandler{messageType: "send_test_aggregate"}
-	MustRegister(handler)
+	aggregateHandler.aggregateCalled = false
 
 	publisher := &stubPublisher{}
-	dispatcher := &Dispatcher{
+	dispatcher := NewDispatcher(Options{
 		Publisher: publisher,
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
@@ -61,13 +69,13 @@ func TestSendAggregate(t *testing.T) {
 				},
 			}, nil
 		},
-	}
+	})
 
 	err := dispatcher.SendAggregate(context.Background(), "t_1", "send_test_aggregate", time.Now(), time.Now())
 	if err != nil {
 		t.Fatalf("SendAggregate failed: %v", err)
 	}
-	if !handler.aggregateCalled {
+	if !aggregateHandler.aggregateCalled {
 		t.Fatal("expected aggregate handler to be called")
 	}
 	if publisher.msg == nil {
@@ -76,13 +84,10 @@ func TestSendAggregate(t *testing.T) {
 }
 
 func TestSendRealtime(t *testing.T) {
-	resetRegistryForTest()
-
-	handler := &stubSendHandler{messageType: "send_test_realtime"}
-	MustRegister(handler)
+	realtimeHandler.realtimeCalled = false
 
 	publisher := &stubPublisher{}
-	dispatcher := &Dispatcher{
+	dispatcher := NewDispatcher(Options{
 		Publisher: publisher,
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
@@ -91,13 +96,13 @@ func TestSendRealtime(t *testing.T) {
 				},
 			}, nil
 		},
-	}
+	})
 
 	err := dispatcher.SendRealtime(context.Background(), "t_2", "send_test_realtime", json.RawMessage(`{"event":1}`))
 	if err != nil {
 		t.Fatalf("SendRealtime failed: %v", err)
 	}
-	if !handler.realtimeCalled {
+	if !realtimeHandler.realtimeCalled {
 		t.Fatal("expected realtime handler to be called")
 	}
 	if publisher.msg == nil {

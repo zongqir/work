@@ -1,4 +1,4 @@
-package aggregate
+package runtime
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"notes/code/aggregate_registry_demo/contract"
 	"notes/code/aggregate_registry_demo/messages"
 )
 
@@ -50,13 +51,13 @@ type RenderedSMS struct {
 	Params       map[string]string `json:"params"`
 }
 
-func loadBizAggregateRequest(path string) (*BizAggregateRequest, error) {
+func loadBizAggregateRequest(path string) (*contract.BizAggregateRequest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var req BizAggregateRequest
+	var req contract.BizAggregateRequest
 	if err := json.Unmarshal(data, &req); err != nil {
 		return nil, err
 	}
@@ -89,15 +90,15 @@ func loadEffectivePolicy(path string) (*EffectivePolicy, error) {
 	return &policy, nil
 }
 
-func BuildMessageRenderInput(req *BizAggregateRequest, result *messages.BizAggregateResult) (MessageRenderInput, error) {
+func BuildMessageRenderInput(req *contract.BizAggregateRequest, result *messages.BizAggregateResult) (MessageRenderInput, error) {
 	if req == nil {
-		return MessageRenderInput{}, fmt.Errorf("%w: aggregate request is required", ErrInvalidRequest)
+		return MessageRenderInput{}, fmt.Errorf("%w: aggregate request is required", contract.ErrInvalidRequest)
 	}
 	if result == nil {
-		return MessageRenderInput{}, fmt.Errorf("%w: aggregate result is required", ErrInvalidRequest)
+		return MessageRenderInput{}, fmt.Errorf("%w: aggregate result is required", contract.ErrInvalidRequest)
 	}
 	if len(result.BizVars) == 0 {
-		return MessageRenderInput{}, fmt.Errorf("%w: biz_vars is required", ErrInvalidRequest)
+		return MessageRenderInput{}, fmt.Errorf("%w: biz_vars is required", contract.ErrInvalidRequest)
 	}
 
 	bizVars := make(messages.TemplateVars, len(result.BizVars))
@@ -116,21 +117,21 @@ func BuildMessageRenderInput(req *BizAggregateRequest, result *messages.BizAggre
 	}, nil
 }
 
-func RenderByPolicy(req *BizAggregateRequest, result *messages.BizAggregateResult, policy *EffectivePolicy, templateRoot string) ([]RenderedChannelMessage, error) {
+func RenderByPolicy(req *contract.BizAggregateRequest, result *messages.BizAggregateResult, policy *EffectivePolicy, templateRoot string) ([]RenderedChannelMessage, error) {
 	if req == nil {
-		return nil, fmt.Errorf("%w: aggregate request is required", ErrInvalidRequest)
+		return nil, fmt.Errorf("%w: aggregate request is required", contract.ErrInvalidRequest)
 	}
 	if result == nil {
-		return nil, fmt.Errorf("%w: aggregate result is required", ErrInvalidRequest)
+		return nil, fmt.Errorf("%w: aggregate result is required", contract.ErrInvalidRequest)
 	}
 	if policy == nil {
-		return nil, fmt.Errorf("%w: effective policy is required", ErrInvalidRequest)
+		return nil, fmt.Errorf("%w: effective policy is required", contract.ErrInvalidRequest)
 	}
 	if policy.TenantID != req.TenantID {
 		return nil, fmt.Errorf("policy tenant_id mismatch: %s", policy.TenantID)
 	}
 	if policy.MessageType == "" {
-		return nil, fmt.Errorf("%w: policy message_type is required", ErrInvalidRequest)
+		return nil, fmt.Errorf("%w: policy message_type is required", contract.ErrInvalidRequest)
 	}
 
 	input, err := BuildMessageRenderInput(req, result)
@@ -206,7 +207,7 @@ func renderChannel(input MessageRenderInput, policy ChannelPolicy, templateRoot 
 
 func templatePath(templateRoot, channelDir, templateName string) (string, error) {
 	if templateName == "" {
-		return "", fmt.Errorf("%w: template name is required", ErrInvalidRequest)
+		return "", fmt.Errorf("%w: template name is required", contract.ErrInvalidRequest)
 	}
 
 	channelRoot := filepath.Clean(filepath.Join(templateRoot, channelDir))
@@ -216,7 +217,7 @@ func templatePath(templateRoot, channelDir, templateName string) (string, error)
 		return "", fmt.Errorf("resolve template path failed: %w", err)
 	}
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("%w: template path escapes channel root", ErrInvalidRequest)
+		return "", fmt.Errorf("%w: template path escapes channel root", contract.ErrInvalidRequest)
 	}
 	return fullPath, nil
 }
