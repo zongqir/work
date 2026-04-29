@@ -29,9 +29,10 @@ type Dispatcher struct {
 }
 
 type messageConfig struct {
-	Enabled         bool            `json:"enabled"`
-	AggregateFilter json.RawMessage `json:"aggregate_filter"`
-	RealtimeFilter  json.RawMessage `json:"realtime_filter"`
+	Enabled                bool            `json:"enabled"`
+	AggregateFilter        json.RawMessage `json:"aggregate_filter"`
+	AggregatePeriodMinutes int             `json:"aggregate_period_minutes"`
+	RealtimeFilter         json.RawMessage `json:"realtime_filter"`
 }
 
 type Options struct {

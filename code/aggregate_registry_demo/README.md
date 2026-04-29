@@ -152,6 +152,16 @@ dispatcher := bootstrap.NewWithRuntime(runtime.Options{...})
 - 然后走业务方实现的 `Aggregate(...)`
 - 拿到结果后直接发出去
 
+聚合调度口径：
+
+- `notification` 内部自己跑一个定时判断器，不额外拆服务
+- 定时判断器每次拉远端配置
+- 配置里 `enabled=true` 且 `aggregate_period_minutes > 0` 才参与判断
+- 它只判断“这个租户这个消息类型这一轮该不该跑聚合”
+- 命中后直接调用 `SendAggregate(...)`
+- 调度状态只记录 `last_window_end`
+- 当前实现每次 tick 最多推进一个聚合窗口，不做一口气补很多窗口
+
 消费发送入口统一放在 `consumer/`：
 
 - `Consumer.Consume(...)` 只做消费后的发送链路
