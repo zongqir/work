@@ -92,7 +92,7 @@
 - `ErrTemporaryFailure`：临时失败，可由调用方决定是否重试
 - `ErrAggregatorNotFound`：运行时没有找到对应 `message_type` 的实现
 
-统一分发入口见 [dispatcher.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/runtime/dispatcher.go:1)。
+统一分发入口见 [dispatcher.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/dispatch/dispatcher.go:1)。
 
 默认启动入口见 [bootstrap.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/bootstrap/bootstrap.go:1)。
 
@@ -121,7 +121,7 @@ err = svc.SendRealtime(ctx, tenantID, messageType, eventBody)
 如果确实要自己控制底层依赖，也可以直接走：
 
 ```go
-dispatcher := bootstrap.NewWithRuntime(runtime.Options{...})
+dispatcher := bootstrap.NewWithDispatcher(dispatch.Options{...})
 ```
 
 分发口径：
@@ -210,7 +210,8 @@ dispatcher := bootstrap.NewWithRuntime(runtime.Options{...})
 - `config/`：分发配置模型和配置缓存
 - `render/`：生效策略和模板渲染
 - `publisher/`：消息发布实现
-- `runtime/`：分发和聚合调度编排
+- `dispatch/`：配置驱动的消息分发
+- `scheduler/`：聚合定时调度
 
 当前目录结构：
 
@@ -226,6 +227,9 @@ code/aggregate_registry_demo/
     contract.go
     types.go
     registry_test.go
+  dispatch/
+    dispatcher.go
+    dispatcher_test.go
   handlers/
     xdr_risk_digest/
       handler.go
@@ -243,11 +247,9 @@ code/aggregate_registry_demo/
     renderer.go
     renderer_test.go
     template_cache.go
-  runtime/
+  scheduler/
     aggregate_scheduler.go
     aggregate_scheduler_test.go
-    dispatcher.go
-    dispatcher_test.go
   templates/
     email/
       xdr_risk_digest_default.subject.tmpl

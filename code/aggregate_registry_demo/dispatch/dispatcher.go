@@ -1,4 +1,4 @@
-package runtime
+package dispatch
 
 import (
 	"context"
@@ -56,14 +56,14 @@ func NewDispatcher(options Options) *Dispatcher {
 }
 
 func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) error {
-	handler, config, err := d.prepare(ctx, tenantID, messageType)
+	handler, cfg, err := d.prepare(ctx, tenantID, messageType)
 	if err != nil {
 		return err
 	}
-	if config == nil || !config.Enabled {
+	if cfg == nil || !cfg.Enabled {
 		return nil
 	}
-	filter, err := parseHandlerPayload(handler, "filter", handler.NewFilter(), config.Filter)
+	filter, err := parseHandlerPayload(handler, "filter", handler.NewFilter(), cfg.Filter)
 	if err != nil {
 		return err
 	}
@@ -105,14 +105,14 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 }
 
 func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType string, event any) error {
-	handler, config, err := d.prepare(ctx, tenantID, messageType)
+	handler, cfg, err := d.prepare(ctx, tenantID, messageType)
 	if err != nil {
 		return err
 	}
-	if config == nil || !config.Enabled {
+	if cfg == nil || !cfg.Enabled {
 		return nil
 	}
-	filter, err := parseHandlerPayload(handler, "filter", handler.NewFilter(), config.Filter)
+	filter, err := parseHandlerPayload(handler, "filter", handler.NewFilter(), cfg.Filter)
 	if err != nil {
 		return err
 	}
@@ -122,17 +122,17 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 		Event:    event,
 	}
 
-	decision, err := handler.Evaluate(ctx, realtimeReq)
+	result, err := handler.Evaluate(ctx, realtimeReq)
 	if err != nil {
 		return err
 	}
-	if decision == nil {
-		return fmt.Errorf("%w: realtime decision is nil", contract.ErrTemporaryFailure)
+	if result == nil {
+		return fmt.Errorf("%w: realtime result is nil", contract.ErrTemporaryFailure)
 	}
-	if !decision.Matched {
+	if !result.Matched {
 		return nil
 	}
-	if decision.IdempotencyKey == "" {
+	if result.IdempotencyKey == "" {
 		return fmt.Errorf("%w: idempotency_key is required", contract.ErrInvalidRequest)
 	}
 
@@ -147,7 +147,7 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 	}
 
 	return d.Publisher.Publish(ctx, &contract.DispatchMessage{
-		IdempotencyKey: buildRealtimeIdempotencyKey(tenantID, handler.MessageType(), decision.IdempotencyKey),
+		IdempotencyKey: buildRealtimeIdempotencyKey(tenantID, handler.MessageType(), result.IdempotencyKey),
 		TenantID:       tenantID,
 		MessageType:    handler.MessageType(),
 		Source:         contract.DispatchSourceRealtime,
@@ -155,7 +155,7 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 		CreatedAt:      createdAt,
 		ExpectedSendAt: createdAt,
 		ExpireAt:       createdAt.Add(expireAfter),
-		BizVars:        decision.BizVars,
+		BizVars:        result.BizVars,
 		EventBody:      marshalEventBody(event),
 	})
 }
@@ -188,11 +188,11 @@ func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) 
 		return handler, nil, nil
 	}
 
-	var config config.MessageConfig
-	if err := json.Unmarshal(configBody, &config); err != nil {
+	var cfg config.MessageConfig
+	if err := json.Unmarshal(configBody, &cfg); err != nil {
 		return nil, nil, err
 	}
-	return handler, &config, nil
+	return handler, &cfg, nil
 }
 
 func parseHandlerPayload(handler contract.Handler, name string, target any, raw json.RawMessage) (any, error) {

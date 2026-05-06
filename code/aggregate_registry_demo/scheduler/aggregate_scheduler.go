@@ -1,4 +1,4 @@
-package runtime
+package scheduler
 
 import (
 	"context"
@@ -28,7 +28,7 @@ type AggregateScheduler struct {
 	Now            func() time.Time
 }
 
-type AggregateSchedulerOptions struct {
+type Options struct {
 	LoadAll        func(ctx context.Context) (map[string]map[string]json.RawMessage, error)
 	Sender         AggregateSender
 	WatermarkStore AggregateWatermarkStore
@@ -37,7 +37,7 @@ type AggregateSchedulerOptions struct {
 	Now            func() time.Time
 }
 
-func NewAggregateScheduler(options AggregateSchedulerOptions) *AggregateScheduler {
+func NewAggregateScheduler(options Options) *AggregateScheduler {
 	return &AggregateScheduler{
 		LoadAll:        options.LoadAll,
 		Sender:         options.Sender,

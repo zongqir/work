@@ -1,4 +1,4 @@
-package runtime
+package dispatch
 
 import (
 	"context"
@@ -195,7 +195,6 @@ func TestSendRealtime(t *testing.T) {
 func TestSendRealtimeRequiresIdempotencyKey(t *testing.T) {
 	realtimeHandler.realtimeCalled = false
 
-	// Use a handler that returns empty idempotency key
 	publisher := &stubPublisher{}
 	dispatcher := NewDispatcher(Options{
 		Publisher: publisher,
@@ -208,10 +207,6 @@ func TestSendRealtimeRequiresIdempotencyKey(t *testing.T) {
 		},
 	})
 
-	// Send empty event body → event.Event is 0 → idempotency key ends with "biz-\x00"
-	// The stub generates key "biz-" + string(rune(event.Event+'0')) where event.Event defaults to 0, so key = "biz-0"
-	// This test verifies that a non-empty key is accepted.
-
 	err := dispatcher.SendRealtime(context.Background(), "t_2", "send_test_realtime", json.RawMessage(`{"event":1}`))
 	if err != nil {
 		t.Fatalf("SendRealtime failed: %v", err)
@@ -219,7 +214,6 @@ func TestSendRealtimeRequiresIdempotencyKey(t *testing.T) {
 	if publisher.msg == nil {
 		t.Fatal("expected message to be published")
 	}
-	// The key should be "biz-1"
 	if publisher.msg.IdempotencyKey != "realtime:t_2:send_test_realtime:biz-1" {
 		t.Fatalf("unexpected idempotency_key: %s", publisher.msg.IdempotencyKey)
 	}

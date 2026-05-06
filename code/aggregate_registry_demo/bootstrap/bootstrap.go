@@ -8,8 +8,8 @@ import (
 
 	"github.com/apache/pulsar-client-go/pulsar"
 	"notes/code/aggregate_registry_demo/contract"
+	"notes/code/aggregate_registry_demo/dispatch"
 	"notes/code/aggregate_registry_demo/publisher"
-	"notes/code/aggregate_registry_demo/runtime"
 )
 
 type Config struct {
@@ -25,7 +25,7 @@ type Config struct {
 }
 
 type Service struct {
-	dispatcher *runtime.Dispatcher
+	dispatcher *dispatch.Dispatcher
 	publisher  *publisher.PulsarPublisher
 	client     pulsar.Client
 }
@@ -54,7 +54,7 @@ func New(config Config) (*Service, error) {
 	}
 
 	return &Service{
-		dispatcher: runtime.NewDispatcher(runtime.Options{
+		dispatcher: dispatch.NewDispatcher(dispatch.Options{
 			Publisher:            publisher,
 			LoadAll:              config.LoadAll,
 			LogError:             config.LogError,
@@ -68,8 +68,8 @@ func New(config Config) (*Service, error) {
 	}, nil
 }
 
-func NewWithRuntime(options runtime.Options) *runtime.Dispatcher {
-	return runtime.NewDispatcher(options)
+func NewWithDispatcher(options dispatch.Options) *dispatch.Dispatcher {
+	return dispatch.NewDispatcher(options)
 }
 
 func (s *Service) SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) error {
