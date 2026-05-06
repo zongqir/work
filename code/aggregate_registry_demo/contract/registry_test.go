@@ -19,6 +19,10 @@ func resetRegistryForTest() {
 
 func (stubHandler) MessageType() string { return "stub" }
 func (stubHandler) MustRegister()       {}
+func (stubHandler) NewFilter() any      { return nil }
+func (stubHandler) NewRealtimeEvent() any {
+	return nil
+}
 func (stubHandler) Aggregate(_ context.Context, _ *BizAggregateRequest) (*messages.BizAggregateResult, error) {
 	return &messages.BizAggregateResult{BizVars: messages.TemplateVars{}}, nil
 }
@@ -78,6 +82,10 @@ type stubHandlerWithType string
 
 func (s stubHandlerWithType) MessageType() string { return string(s) }
 func (s stubHandlerWithType) MustRegister()       {}
+func (s stubHandlerWithType) NewFilter() any      { return nil }
+func (s stubHandlerWithType) NewRealtimeEvent() any {
+	return nil
+}
 func (s stubHandlerWithType) Aggregate(_ context.Context, _ *BizAggregateRequest) (*messages.BizAggregateResult, error) {
 	return &messages.BizAggregateResult{BizVars: messages.TemplateVars{}}, nil
 }

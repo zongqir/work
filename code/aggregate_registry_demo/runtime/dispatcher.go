@@ -30,6 +30,7 @@ type Dispatcher struct {
 
 type messageConfig struct {
 	Enabled                bool            `json:"enabled"`
+	Filter                 json.RawMessage `json:"filter"`
 	AggregateFilter        json.RawMessage `json:"aggregate_filter"`
 	AggregatePeriodMinutes int             `json:"aggregate_period_minutes"`
 	RealtimeFilter         json.RawMessage `json:"realtime_filter"`
@@ -71,12 +72,16 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 	if config == nil || !config.Enabled {
 		return nil
 	}
+	filter, err := parseHandlerPayload(handler, "filter", handler.NewFilter(), config.filterForAggregate())
+	if err != nil {
+		return err
+	}
 
 	result, err := handler.Aggregate(ctx, &contract.BizAggregateRequest{
 		TenantID:    tenantID,
 		WindowStart: windowStart,
 		WindowEnd:   windowEnd,
-		ConfigBody:  config.AggregateFilter,
+		Filter:      filter,
 	})
 	if err != nil {
 		return err
@@ -121,12 +126,22 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 	if config == nil || !config.Enabled {
 		return nil
 	}
+	filter, err := parseHandlerPayload(handler, "filter", handler.NewFilter(), config.filterForRealtime())
+	if err != nil {
+		return err
+	}
+	event, err := parseHandlerPayload(handler, "realtime event", handler.NewRealtimeEvent(), eventBody)
+	if err != nil {
+		return err
+	}
 
-	decision, err := handler.Evaluate(ctx, &contract.RealtimeRequest{
-		TenantID:    tenantID,
-		FilterQuery: config.RealtimeFilter,
-		EventBody:   eventBody,
-	})
+	realtimeReq := &contract.RealtimeRequest{
+		TenantID: tenantID,
+		Filter:   filter,
+		Event:    event,
+	}
+
+	decision, err := handler.Evaluate(ctx, realtimeReq)
 	if err != nil {
 		return err
 	}
@@ -137,11 +152,7 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 		return nil
 	}
 
-	bizKey, err := handler.RealtimeIdempotencyKey(ctx, &contract.RealtimeRequest{
-		TenantID:    tenantID,
-		FilterQuery: config.RealtimeFilter,
-		EventBody:   eventBody,
-	})
+	bizKey, err := handler.RealtimeIdempotencyKey(ctx, realtimeReq)
 	if err != nil {
 		return err
 	}
@@ -219,6 +230,33 @@ func newMessageID() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(raw[:]), nil
+}
+
+func parseHandlerPayload(handler contract.Handler, name string, target any, raw json.RawMessage) (any, error) {
+	if target == nil {
+		return nil, nil
+	}
+	if len(raw) == 0 || string(raw) == "null" {
+		return target, nil
+	}
+	if err := json.Unmarshal(raw, target); err != nil {
+		return nil, fmt.Errorf("%w: parse %s for %s: %v", contract.ErrInvalidRequest, name, handler.MessageType(), err)
+	}
+	return target, nil
+}
+
+func (c messageConfig) filterForAggregate() json.RawMessage {
+	if len(c.Filter) != 0 {
+		return c.Filter
+	}
+	return c.AggregateFilter
+}
+
+func (c messageConfig) filterForRealtime() json.RawMessage {
+	if len(c.Filter) != 0 {
+		return c.Filter
+	}
+	return c.RealtimeFilter
 }
 
 func buildAggregateIdempotencyKey(tenantID, messageType string, windowStart, windowEnd time.Time) string {

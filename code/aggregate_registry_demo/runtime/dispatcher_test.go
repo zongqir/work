@@ -28,6 +28,15 @@ type stubSendHandler struct {
 	idempotencyCalled bool
 }
 
+type stubFilter struct {
+	K string `json:"k"`
+	X string `json:"x"`
+}
+
+type stubRealtimeEvent struct {
+	Event int `json:"event"`
+}
+
 var (
 	aggregateHandler = &stubSendHandler{messageType: "send_test_aggregate"}
 	realtimeHandler  = &stubSendHandler{messageType: "send_test_realtime", bizIdempotencyKey: "biz-1"}
@@ -40,20 +49,37 @@ func init() {
 
 func (h *stubSendHandler) MessageType() string { return h.messageType }
 func (h *stubSendHandler) MustRegister()       {}
+func (h *stubSendHandler) NewFilter() any      { return &stubFilter{} }
+func (h *stubSendHandler) NewRealtimeEvent() any {
+	return &stubRealtimeEvent{}
+}
 func (h *stubSendHandler) Aggregate(_ context.Context, req *contract.BizAggregateRequest) (*messages.BizAggregateResult, error) {
 	h.aggregateCalled = true
+	filter, ok := req.Filter.(*stubFilter)
+	if !ok {
+		return nil, contract.ErrInvalidRequest
+	}
 	return &messages.BizAggregateResult{
 		BizVars: messages.TemplateVars{
-			"config": string(req.ConfigBody),
+			"config": filter.K,
 		},
 	}, nil
 }
 func (h *stubSendHandler) Evaluate(_ context.Context, req *contract.RealtimeRequest) (*contract.RealtimeDecision, error) {
 	h.realtimeCalled = true
+	filter, ok := req.Filter.(*stubFilter)
+	if !ok {
+		return nil, contract.ErrInvalidRequest
+	}
+	event, ok := req.Event.(*stubRealtimeEvent)
+	if !ok {
+		return nil, contract.ErrInvalidRequest
+	}
 	return &contract.RealtimeDecision{
 		Matched: true,
 		BizVars: messages.TemplateVars{
-			"filter": string(req.FilterQuery),
+			"filter": filter.X,
+			"event":  event.Event,
 		},
 	}, nil
 }
@@ -77,7 +103,7 @@ func TestSendAggregate(t *testing.T) {
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
 				"t_1": {
-					"send_test_aggregate": json.RawMessage(`{"enabled":true,"aggregate_filter":{"k":"v"}}`),
+					"send_test_aggregate": json.RawMessage(`{"enabled":true,"filter":{"k":"v"}}`),
 				},
 			}, nil
 		},
@@ -92,6 +118,9 @@ func TestSendAggregate(t *testing.T) {
 	}
 	if publisher.msg == nil {
 		t.Fatal("expected message to be published")
+	}
+	if publisher.msg.BizVars["config"] != "v" {
+		t.Fatalf("expected parsed aggregate filter, got %v", publisher.msg.BizVars["config"])
 	}
 	if publisher.msg.Source != contract.DispatchSourceAggregate {
 		t.Fatalf("expected aggregate source, got %s", publisher.msg.Source)
@@ -131,7 +160,7 @@ func TestSendRealtime(t *testing.T) {
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
 				"t_2": {
-					"send_test_realtime": json.RawMessage(`{"enabled":true,"realtime_filter":{"x":"y"}}`),
+					"send_test_realtime": json.RawMessage(`{"enabled":true,"filter":{"x":"y"}}`),
 				},
 			}, nil
 		},
@@ -149,6 +178,12 @@ func TestSendRealtime(t *testing.T) {
 	}
 	if publisher.msg == nil {
 		t.Fatal("expected message to be published")
+	}
+	if publisher.msg.BizVars["filter"] != "y" {
+		t.Fatalf("expected parsed realtime filter, got %v", publisher.msg.BizVars["filter"])
+	}
+	if publisher.msg.BizVars["event"] != 1 {
+		t.Fatalf("expected parsed realtime event, got %v", publisher.msg.BizVars["event"])
 	}
 	if publisher.msg.Source != contract.DispatchSourceRealtime {
 		t.Fatalf("expected realtime source, got %s", publisher.msg.Source)
@@ -187,7 +222,7 @@ func TestSendRealtimeRequiresBizIdempotencyKey(t *testing.T) {
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
 				"t_2": {
-					"send_test_realtime": json.RawMessage(`{"enabled":true,"realtime_filter":{"x":"y"}}`),
+					"send_test_realtime": json.RawMessage(`{"enabled":true,"filter":{"x":"y"}}`),
 				},
 			}, nil
 		},
@@ -205,6 +240,62 @@ func TestSendRealtimeRequiresBizIdempotencyKey(t *testing.T) {
 	}
 	if !realtimeHandler.idempotencyCalled {
 		t.Fatal("expected realtime idempotency key to be called")
+	}
+}
+
+func TestSendAggregateRejectsInvalidFilter(t *testing.T) {
+	publisher := &stubPublisher{}
+	dispatcher := NewDispatcher(Options{
+		Publisher: publisher,
+		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
+			return map[string]map[string]json.RawMessage{
+				"t_1": {
+					"send_test_aggregate": json.RawMessage(`{"enabled":true,"filter":{"k":1}}`),
+				},
+			}, nil
+		},
+	})
+
+	err := dispatcher.SendAggregate(
+		context.Background(),
+		"t_1",
+		"send_test_aggregate",
+		time.Date(2026, 4, 29, 11, 0, 0, 0, time.UTC),
+		time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC),
+	)
+	if err == nil {
+		t.Fatal("expected SendAggregate to fail")
+	}
+	if !errors.Is(err, contract.ErrInvalidRequest) {
+		t.Fatalf("expected ErrInvalidRequest, got %v", err)
+	}
+	if publisher.msg != nil {
+		t.Fatal("did not expect message to be published")
+	}
+}
+
+func TestSendRealtimeRejectsInvalidEvent(t *testing.T) {
+	publisher := &stubPublisher{}
+	dispatcher := NewDispatcher(Options{
+		Publisher: publisher,
+		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
+			return map[string]map[string]json.RawMessage{
+				"t_2": {
+					"send_test_realtime": json.RawMessage(`{"enabled":true,"filter":{"x":"y"}}`),
+				},
+			}, nil
+		},
+	})
+
+	err := dispatcher.SendRealtime(context.Background(), "t_2", "send_test_realtime", json.RawMessage(`{"event":"bad"}`))
+	if err == nil {
+		t.Fatal("expected SendRealtime to fail")
+	}
+	if !errors.Is(err, contract.ErrInvalidRequest) {
+		t.Fatalf("expected ErrInvalidRequest, got %v", err)
+	}
+	if publisher.msg != nil {
+		t.Fatal("did not expect message to be published")
 	}
 }
 
