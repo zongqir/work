@@ -118,10 +118,13 @@ defer svc.Close()
 err = svc.SendRealtime(ctx, tenantID, messageType, eventBody)
 ```
 
-如果确实要自己控制底层依赖，也可以直接走：
+如果确实要自己控制底层依赖，就直接构建 `Dispatcher`：
 
 ```go
-dispatcher := bootstrap.NewWithDispatcher(dispatch.Options{...})
+dispatcher := &dispatch.Dispatcher{
+    Publisher: publisher,
+    LoadAll:   loadAllConfigs,
+}
 ```
 
 分发口径：
@@ -164,6 +167,7 @@ dispatcher := bootstrap.NewWithDispatcher(dispatch.Options{...})
 
 投递处理入口统一放在 `delivery/`：
 
+- `Processor` 直接就是处理器本体，不再额外包一层 `Options/New`
 - `Processor.Process(...)` 只做来源无关的发送处理链路
 - 成功：写成功记录
 - 失败且还能重试：投递延期消息
@@ -212,6 +216,11 @@ dispatcher := bootstrap.NewWithDispatcher(dispatch.Options{...})
 - `publisher/`：消息发布实现
 - `dispatch/`：配置驱动的消息分发
 - `scheduler/`：聚合定时调度
+
+当前代码里已经去掉几层没必要的包装：
+
+- `Dispatcher`、`Processor`、`AggregateScheduler` 都可以直接 struct literal 初始化
+- 模板上下文直接就是 `map[string]TemplateVars`，不再单独包 `MessageRenderInput`
 
 当前目录结构：
 

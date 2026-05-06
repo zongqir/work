@@ -10,10 +10,6 @@ import (
 	"notes/code/aggregate_registry_demo/contract"
 )
 
-type MessageRenderInput struct {
-	Vars map[string]contract.TemplateVars
-}
-
 type RenderedChannelMessage struct {
 	Channel string           `json:"channel"`
 	Email   *RenderedEmail   `json:"email,omitempty"`
@@ -35,15 +31,15 @@ type RenderedSMS struct {
 	Params       map[string]string `json:"params"`
 }
 
-func BuildMessageRenderInput(req *contract.BizAggregateRequest, result *contract.BizAggregateResult) (MessageRenderInput, error) {
+func BuildTemplateContext(req *contract.BizAggregateRequest, result *contract.BizAggregateResult) (map[string]contract.TemplateVars, error) {
 	if req == nil {
-		return MessageRenderInput{}, fmt.Errorf("%w: aggregate request is required", contract.ErrInvalidRequest)
+		return nil, fmt.Errorf("%w: aggregate request is required", contract.ErrInvalidRequest)
 	}
 	if result == nil {
-		return MessageRenderInput{}, fmt.Errorf("%w: aggregate result is required", contract.ErrInvalidRequest)
+		return nil, fmt.Errorf("%w: aggregate result is required", contract.ErrInvalidRequest)
 	}
 	if len(result.BizVars) == 0 {
-		return MessageRenderInput{}, fmt.Errorf("%w: biz_vars is required", contract.ErrInvalidRequest)
+		return nil, fmt.Errorf("%w: biz_vars is required", contract.ErrInvalidRequest)
 	}
 
 	bizVars := make(contract.TemplateVars, len(result.BizVars))
@@ -54,11 +50,9 @@ func BuildMessageRenderInput(req *contract.BizAggregateRequest, result *contract
 		"window_label": formatWindowLabel(req.WindowStart, req.WindowEnd),
 	}
 
-	return MessageRenderInput{
-		Vars: map[string]contract.TemplateVars{
-			"biz": bizVars,
-			"sys": sysVars,
-		},
+	return map[string]contract.TemplateVars{
+		"biz": bizVars,
+		"sys": sysVars,
 	}, nil
 }
 
@@ -79,14 +73,14 @@ func RenderByPolicy(req *contract.BizAggregateRequest, result *contract.BizAggre
 		return nil, fmt.Errorf("%w: policy message_type is required", contract.ErrInvalidRequest)
 	}
 
-	input, err := BuildMessageRenderInput(req, result)
+	context, err := BuildTemplateContext(req, result)
 	if err != nil {
 		return nil, err
 	}
 
 	renderedMessages := make([]RenderedChannelMessage, 0, len(policy.Channels))
 	for _, channelPolicy := range policy.Channels {
-		rendered, err := renderChannel(input, channelPolicy, templateRoot)
+		rendered, err := renderChannel(context, channelPolicy, templateRoot)
 		if err != nil {
 			return nil, err
 		}
@@ -96,14 +90,14 @@ func RenderByPolicy(req *contract.BizAggregateRequest, result *contract.BizAggre
 	return renderedMessages, nil
 }
 
-func renderChannel(input MessageRenderInput, policy ChannelPolicy, templateRoot string) (RenderedChannelMessage, error) {
+func renderChannel(context map[string]contract.TemplateVars, policy ChannelPolicy, templateRoot string) (RenderedChannelMessage, error) {
 	switch policy.Channel {
 	case "email":
 		subjectPath, err := templatePath(templateRoot, "email", policy.TemplateCode+".subject.tmpl")
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
-		subject, err := renderTextTemplate(subjectPath, input.Vars)
+		subject, err := renderTextTemplate(subjectPath, context)
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
@@ -111,7 +105,7 @@ func renderChannel(input MessageRenderInput, policy ChannelPolicy, templateRoot 
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
-		body, err := renderTextTemplate(bodyPath, input.Vars)
+		body, err := renderTextTemplate(bodyPath, context)
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
@@ -127,7 +121,7 @@ func renderChannel(input MessageRenderInput, policy ChannelPolicy, templateRoot 
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
-		content, err := renderTextTemplate(contentPath, input.Vars)
+		content, err := renderTextTemplate(contentPath, context)
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
@@ -142,7 +136,7 @@ func renderChannel(input MessageRenderInput, policy ChannelPolicy, templateRoot 
 			Channel: "sms",
 			SMS: &RenderedSMS{
 				TemplateCode: policy.TemplateCode,
-				Params:       buildSMSParams(input),
+				Params:       buildSMSParams(context),
 			},
 		}, nil
 	default:
@@ -167,10 +161,10 @@ func templatePath(templateRoot, channelDir, templateName string) (string, error)
 	return fullPath, nil
 }
 
-func buildSMSParams(input MessageRenderInput) map[string]string {
+func buildSMSParams(context map[string]contract.TemplateVars) map[string]string {
 	params := make(map[string]string)
-	appendParams(params, input.Vars["biz"])
-	appendParams(params, input.Vars["sys"])
+	appendParams(params, context["biz"])
+	appendParams(params, context["sys"])
 	return params
 }
 

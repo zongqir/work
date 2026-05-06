@@ -28,26 +28,6 @@ type AggregateScheduler struct {
 	Now            func() time.Time
 }
 
-type Options struct {
-	LoadAll        func(ctx context.Context) (map[string]map[string]json.RawMessage, error)
-	Sender         AggregateSender
-	WatermarkStore AggregateWatermarkStore
-	LogError       func(ctx context.Context, msg string, err error)
-	PollInterval   time.Duration
-	Now            func() time.Time
-}
-
-func NewAggregateScheduler(options Options) *AggregateScheduler {
-	return &AggregateScheduler{
-		LoadAll:        options.LoadAll,
-		Sender:         options.Sender,
-		WatermarkStore: options.WatermarkStore,
-		LogError:       options.LogError,
-		PollInterval:   options.PollInterval,
-		Now:            options.Now,
-	}
-}
-
 func (s *AggregateScheduler) Run(ctx context.Context) error {
 	if s == nil || s.LoadAll == nil {
 		return fmt.Errorf("%w: load_all is required", contract.ErrInvalidRequest)

@@ -54,7 +54,7 @@ func New(config Config) (*Service, error) {
 	}
 
 	return &Service{
-		dispatcher: dispatch.NewDispatcher(dispatch.Options{
+		dispatcher: &dispatch.Dispatcher{
 			Publisher:            publisher,
 			LoadAll:              config.LoadAll,
 			LogError:             config.LogError,
@@ -62,14 +62,10 @@ func New(config Config) (*Service, error) {
 			CacheMaxStale:        config.CacheMaxStale,
 			RealtimeExpireAfter:  config.RealtimeExpireAfter,
 			AggregateExpireAfter: config.AggregateExpireAfter,
-		}),
+		},
 		publisher: publisher,
 		client:    client,
 	}, nil
-}
-
-func NewWithDispatcher(options dispatch.Options) *dispatch.Dispatcher {
-	return dispatch.NewDispatcher(options)
 }
 
 func (s *Service) SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) error {

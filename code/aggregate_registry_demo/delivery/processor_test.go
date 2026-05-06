@@ -45,13 +45,13 @@ func TestProcessSuccess(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	sender := &stubSender{}
 	recorder := &stubRecorder{}
-	p := New(Options{
+	p := &Processor{
 		Sender:   sender,
 		Recorder: recorder,
 		Now: func() time.Time {
 			return now
 		},
-	})
+	}
 
 	err := p.Process(context.Background(), newMessage(now))
 	if err != nil {
@@ -75,7 +75,7 @@ func TestProcessRetryOnSendFailure(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	retryPublisher := &stubRetryPublisher{}
 	recorder := &stubRecorder{}
-	p := New(Options{
+	p := &Processor{
 		Sender: &stubSender{
 			err: errors.New("send failed"),
 		},
@@ -85,7 +85,7 @@ func TestProcessRetryOnSendFailure(t *testing.T) {
 		Now: func() time.Time {
 			return now
 		},
-	})
+	}
 
 	err := p.Process(context.Background(), newMessage(now))
 	if err != nil {
@@ -108,14 +108,14 @@ func TestProcessRetryOnSendFailure(t *testing.T) {
 func TestProcessBeforeExpectedSendAt(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	retryPublisher := &stubRetryPublisher{}
-	p := New(Options{
+	p := &Processor{
 		Sender:         &stubSender{},
 		RetryPublisher: retryPublisher,
 		Recorder:       &stubRecorder{},
 		Now: func() time.Time {
 			return now
 		},
-	})
+	}
 
 	msg := newMessage(now)
 	msg.ExpectedSendAt = now.Add(2 * time.Minute)
@@ -138,13 +138,13 @@ func TestProcessBeforeExpectedSendAt(t *testing.T) {
 func TestProcessExpired(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 31, 0, 0, time.UTC)
 	recorder := &stubRecorder{}
-	p := New(Options{
+	p := &Processor{
 		Sender:   &stubSender{},
 		Recorder: recorder,
 		Now: func() time.Time {
 			return now
 		},
-	})
+	}
 
 	msg := newMessage(time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC))
 	msg.ExpireAt = time.Date(2026, 4, 29, 13, 30, 0, 0, time.UTC)
@@ -164,7 +164,7 @@ func TestProcessExpired(t *testing.T) {
 func TestProcessFinalFailure(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	recorder := &stubRecorder{}
-	p := New(Options{
+	p := &Processor{
 		Sender: &stubSender{
 			err: errors.New("send failed"),
 		},
@@ -173,7 +173,7 @@ func TestProcessFinalFailure(t *testing.T) {
 		Now: func() time.Time {
 			return now
 		},
-	})
+	}
 
 	msg := newMessage(now)
 	msg.RetryCount = 3
@@ -193,7 +193,7 @@ func TestProcessFinalFailure(t *testing.T) {
 func TestProcessThirdRetryStillPublishes(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	retryPublisher := &stubRetryPublisher{}
-	p := New(Options{
+	p := &Processor{
 		Sender: &stubSender{
 			err: errors.New("send failed"),
 		},
@@ -203,7 +203,7 @@ func TestProcessThirdRetryStillPublishes(t *testing.T) {
 		Now: func() time.Time {
 			return now
 		},
-	})
+	}
 
 	msg := newMessage(now)
 	msg.RetryCount = 2
@@ -223,7 +223,7 @@ func TestProcessThirdRetryStillPublishes(t *testing.T) {
 func TestProcessPanicMovesToRetry(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	retryPublisher := &stubRetryPublisher{}
-	p := New(Options{
+	p := &Processor{
 		Sender: &stubSender{
 			panicValue: "boom",
 		},
@@ -232,7 +232,7 @@ func TestProcessPanicMovesToRetry(t *testing.T) {
 		Now: func() time.Time {
 			return now
 		},
-	})
+	}
 
 	err := p.Process(context.Background(), newMessage(now))
 	if err != nil {

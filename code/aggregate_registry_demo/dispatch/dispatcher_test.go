@@ -90,7 +90,7 @@ func TestSendAggregate(t *testing.T) {
 	windowEnd := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
 
 	publisher := &stubPublisher{}
-	dispatcher := NewDispatcher(Options{
+	dispatcher := &Dispatcher{
 		Publisher: publisher,
 		Now: func() time.Time {
 			return now
@@ -102,7 +102,7 @@ func TestSendAggregate(t *testing.T) {
 				},
 			}, nil
 		},
-	})
+	}
 
 	err := dispatcher.SendAggregate(context.Background(), "t_1", "send_test_aggregate", windowStart, windowEnd)
 	if err != nil {
@@ -142,7 +142,7 @@ func TestSendRealtime(t *testing.T) {
 	now := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
 
 	publisher := &stubPublisher{}
-	dispatcher := NewDispatcher(Options{
+	dispatcher := &Dispatcher{
 		Publisher: publisher,
 		Now: func() time.Time {
 			return now
@@ -154,7 +154,7 @@ func TestSendRealtime(t *testing.T) {
 				},
 			}, nil
 		},
-	})
+	}
 
 	err := dispatcher.SendRealtime(context.Background(), "t_2", "send_test_realtime", json.RawMessage(`{"event":1}`))
 	if err != nil {
@@ -196,7 +196,7 @@ func TestSendRealtimeRequiresIdempotencyKey(t *testing.T) {
 	realtimeHandler.realtimeCalled = false
 
 	publisher := &stubPublisher{}
-	dispatcher := NewDispatcher(Options{
+	dispatcher := &Dispatcher{
 		Publisher: publisher,
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
@@ -205,7 +205,7 @@ func TestSendRealtimeRequiresIdempotencyKey(t *testing.T) {
 				},
 			}, nil
 		},
-	})
+	}
 
 	err := dispatcher.SendRealtime(context.Background(), "t_2", "send_test_realtime", json.RawMessage(`{"event":1}`))
 	if err != nil {
@@ -221,7 +221,7 @@ func TestSendRealtimeRequiresIdempotencyKey(t *testing.T) {
 
 func TestSendAggregateRejectsInvalidFilter(t *testing.T) {
 	publisher := &stubPublisher{}
-	dispatcher := NewDispatcher(Options{
+	dispatcher := &Dispatcher{
 		Publisher: publisher,
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
@@ -230,7 +230,7 @@ func TestSendAggregateRejectsInvalidFilter(t *testing.T) {
 				},
 			}, nil
 		},
-	})
+	}
 
 	err := dispatcher.SendAggregate(
 		context.Background(),
@@ -252,7 +252,7 @@ func TestSendAggregateRejectsInvalidFilter(t *testing.T) {
 
 func TestSendRealtimeRejectsInvalidEvent(t *testing.T) {
 	publisher := &stubPublisher{}
-	dispatcher := NewDispatcher(Options{
+	dispatcher := &Dispatcher{
 		Publisher: publisher,
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
@@ -261,7 +261,7 @@ func TestSendRealtimeRejectsInvalidEvent(t *testing.T) {
 				},
 			}, nil
 		},
-	})
+	}
 
 	err := dispatcher.SendRealtime(context.Background(), "t_2", "send_test_realtime", json.RawMessage(`{"event":"bad"}`))
 	if err == nil {

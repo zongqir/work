@@ -8,15 +8,15 @@ import (
 	"notes/code/aggregate_registry_demo/contract"
 )
 
-func TestBuildMessageRenderInputRejectsNil(t *testing.T) {
-	_, err := BuildMessageRenderInput(nil, &contract.BizAggregateResult{
+func TestBuildTemplateContextRejectsNil(t *testing.T) {
+	_, err := BuildTemplateContext(nil, &contract.BizAggregateResult{
 		BizVars: contract.TemplateVars{"k": "v"},
 	})
 	if !errors.Is(err, contract.ErrInvalidRequest) {
 		t.Fatalf("expected ErrInvalidRequest for nil request, got %v", err)
 	}
 
-	_, err = BuildMessageRenderInput(&contract.BizAggregateRequest{}, nil)
+	_, err = BuildTemplateContext(&contract.BizAggregateRequest{}, nil)
 	if !errors.Is(err, contract.ErrInvalidRequest) {
 		t.Fatalf("expected ErrInvalidRequest for nil result, got %v", err)
 	}

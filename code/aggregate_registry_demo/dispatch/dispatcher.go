@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"notes/code/aggregate_registry_demo/config"
@@ -20,39 +21,14 @@ type Dispatcher struct {
 	Publisher            MessagePublisher
 	LoadAll              func(ctx context.Context) (map[string]map[string]json.RawMessage, error)
 	LogError             func(ctx context.Context, msg string, err error)
-	RealtimeExpireAfter  time.Duration
-	AggregateExpireAfter time.Duration
-	Now                  func() time.Time
-
-	cache config.Cache
-}
-
-type Options struct {
-	Publisher            MessagePublisher
-	LoadAll              func(ctx context.Context) (map[string]map[string]json.RawMessage, error)
-	LogError             func(ctx context.Context, msg string, err error)
 	CacheTTL             time.Duration
 	CacheMaxStale        time.Duration
 	RealtimeExpireAfter  time.Duration
 	AggregateExpireAfter time.Duration
 	Now                  func() time.Time
-}
 
-func NewDispatcher(options Options) *Dispatcher {
-	d := &Dispatcher{
-		Publisher:            options.Publisher,
-		LoadAll:              options.LoadAll,
-		LogError:             options.LogError,
-		RealtimeExpireAfter:  options.RealtimeExpireAfter,
-		AggregateExpireAfter: options.AggregateExpireAfter,
-		Now:                  options.Now,
-	}
-	d.cache.TTL = options.CacheTTL
-	d.cache.MaxStale = options.CacheMaxStale
-	if options.Now != nil {
-		d.cache.Now = options.Now
-	}
-	return d
+	cacheOnce sync.Once
+	cache     config.Cache
 }
 
 func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) error {
@@ -180,6 +156,7 @@ func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) 
 		return nil, nil, err
 	}
 
+	d.ensureCache()
 	configBody, err := d.cache.Pick(ctx, tenantID, messageType, d.LoadAll, d.LogError)
 	if err != nil {
 		return nil, nil, err
@@ -193,6 +170,16 @@ func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) 
 		return nil, nil, err
 	}
 	return handler, &cfg, nil
+}
+
+func (d *Dispatcher) ensureCache() {
+	d.cacheOnce.Do(func() {
+		d.cache.TTL = d.CacheTTL
+		d.cache.MaxStale = d.CacheMaxStale
+		if d.Now != nil {
+			d.cache.Now = d.Now
+		}
+	})
 }
 
 func parseHandlerPayload(handler contract.Handler, name string, target any, raw json.RawMessage) (any, error) {

@@ -9,8 +9,8 @@ import (
 )
 
 type Result struct {
-	TemplateContext map[string]any                  `json:"template_context,omitempty"`
-	Rendered        []render.RenderedChannelMessage `json:"rendered"`
+	TemplateContext map[string]contract.TemplateVars `json:"template_context,omitempty"`
+	Rendered        []render.RenderedChannelMessage  `json:"rendered"`
 }
 
 func FromFiles(requestPath, resultPath, policyPath, templateRoot string, showContext bool) (*Result, error) {
@@ -29,7 +29,7 @@ func FromFiles(requestPath, resultPath, policyPath, templateRoot string, showCon
 		return nil, err
 	}
 
-	input, err := render.BuildMessageRenderInput(req, result)
+	templateContext, err := render.BuildTemplateContext(req, result)
 	if err != nil {
 		return nil, err
 	}
@@ -43,11 +43,7 @@ func FromFiles(requestPath, resultPath, policyPath, templateRoot string, showCon
 		Rendered: rendered,
 	}
 	if showContext {
-		context := make(map[string]any, len(input.Vars))
-		for key, value := range input.Vars {
-			context[key] = value
-		}
-		out.TemplateContext = context
+		out.TemplateContext = templateContext
 	}
 
 	return out, nil

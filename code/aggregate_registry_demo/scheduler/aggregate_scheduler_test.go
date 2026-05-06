@@ -44,7 +44,7 @@ func TestAggregateSchedulerTickFirstWindow(t *testing.T) {
 	now := time.Date(2026, 4, 29, 12, 7, 0, 0, time.UTC)
 	sender := &stubAggregateSender{}
 	store := &stubAggregateWatermarkStore{}
-	scheduler := NewAggregateScheduler(Options{
+	scheduler := &AggregateScheduler{
 		Sender:         sender,
 		WatermarkStore: store,
 		Now: func() time.Time {
@@ -57,7 +57,7 @@ func TestAggregateSchedulerTickFirstWindow(t *testing.T) {
 				},
 			}, nil
 		},
-	})
+	}
 
 	err := scheduler.Tick(context.Background())
 	if err != nil {
@@ -85,7 +85,7 @@ func TestAggregateSchedulerTickSkipWhenNotDue(t *testing.T) {
 			"t_1:xdr_risk_digest": time.Date(2026, 4, 29, 12, 10, 0, 0, time.UTC),
 		},
 	}
-	scheduler := NewAggregateScheduler(Options{
+	scheduler := &AggregateScheduler{
 		Sender:         sender,
 		WatermarkStore: store,
 		Now: func() time.Time {
@@ -98,7 +98,7 @@ func TestAggregateSchedulerTickSkipWhenNotDue(t *testing.T) {
 				},
 			}, nil
 		},
-	})
+	}
 
 	err := scheduler.Tick(context.Background())
 	if err != nil {
@@ -117,7 +117,7 @@ func TestAggregateSchedulerTickNextWindowFromWatermark(t *testing.T) {
 			"t_1:xdr_risk_digest": time.Date(2026, 4, 29, 12, 5, 0, 0, time.UTC),
 		},
 	}
-	scheduler := NewAggregateScheduler(Options{
+	scheduler := &AggregateScheduler{
 		Sender:         sender,
 		WatermarkStore: store,
 		Now: func() time.Time {
@@ -130,7 +130,7 @@ func TestAggregateSchedulerTickNextWindowFromWatermark(t *testing.T) {
 				},
 			}, nil
 		},
-	})
+	}
 
 	err := scheduler.Tick(context.Background())
 	if err != nil {

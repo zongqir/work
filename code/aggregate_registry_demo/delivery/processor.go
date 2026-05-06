@@ -36,16 +36,6 @@ type SendRecord struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-type Options struct {
-	Sender         Sender
-	RetryPublisher RetryPublisher
-	Recorder       Recorder
-	LogError       func(ctx context.Context, msg string, err error)
-	RetryDelay     time.Duration
-	MaxRetry       int
-	Now            func() time.Time
-}
-
 type Processor struct {
 	Sender         Sender
 	RetryPublisher RetryPublisher
@@ -54,18 +44,6 @@ type Processor struct {
 	RetryDelay     time.Duration
 	MaxRetry       int
 	Now            func() time.Time
-}
-
-func New(options Options) *Processor {
-	return &Processor{
-		Sender:         options.Sender,
-		RetryPublisher: options.RetryPublisher,
-		Recorder:       options.Recorder,
-		LogError:       options.LogError,
-		RetryDelay:     options.RetryDelay,
-		MaxRetry:       options.MaxRetry,
-		Now:            options.Now,
-	}
 }
 
 func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) (err error) {
