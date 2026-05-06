@@ -162,9 +162,9 @@ dispatcher := bootstrap.NewWithDispatcher(dispatch.Options{...})
 - 调度状态只记录 `last_window_end`
 - 当前实现每次 tick 最多推进一个聚合窗口，不做一口气补很多窗口
 
-消费发送入口统一放在 `consumer/`：
+投递处理入口统一放在 `delivery/`：
 
-- `Consumer.Consume(...)` 只做消费后的发送链路
+- `Processor.Process(...)` 只做来源无关的发送处理链路
 - 成功：写成功记录
 - 失败且还能重试：投递延期消息
 - 默认最多重试 `3` 次，也就是一共最多消费 `4` 次
@@ -227,6 +227,9 @@ code/aggregate_registry_demo/
     contract.go
     types.go
     registry_test.go
+  delivery/
+    processor.go
+    processor_test.go
   dispatch/
     dispatcher.go
     dispatcher_test.go
@@ -237,11 +240,11 @@ code/aggregate_registry_demo/
   sample_request.json
   sample_result.json
   sample_policy.json
-  publisher/
-    pulsar.go
   preview/
     preview.go
     preview_test.go
+  publisher/
+    pulsar.go
   render/
     policy.go
     renderer.go

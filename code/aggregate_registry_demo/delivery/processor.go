@@ -1,4 +1,4 @@
-package consumer
+package delivery
 
 import (
 	"context"
@@ -30,18 +30,10 @@ const (
 )
 
 type SendRecord struct {
-	MessageID      string    `json:"message_id"`
-	IdempotencyKey string    `json:"idempotency_key"`
-	TenantID       string    `json:"tenant_id"`
-	MessageType    string    `json:"message_type"`
-	Source         string    `json:"source"`
-	Status         Status    `json:"status"`
-	RetryCount     int       `json:"retry_count"`
-	ErrorMessage   string    `json:"error_message,omitempty"`
-	CreatedAt      time.Time `json:"created_at"`
-	ExpectedSendAt time.Time `json:"expected_send_at"`
-	ExpireAt       time.Time `json:"expire_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	contract.DispatchMessage
+	Status       Status    `json:"status"`
+	ErrorMessage string    `json:"error_message,omitempty"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type Options struct {
@@ -54,7 +46,7 @@ type Options struct {
 	Now            func() time.Time
 }
 
-type Consumer struct {
+type Processor struct {
 	Sender         Sender
 	RetryPublisher RetryPublisher
 	Recorder       Recorder
@@ -64,8 +56,8 @@ type Consumer struct {
 	Now            func() time.Time
 }
 
-func New(options Options) *Consumer {
-	return &Consumer{
+func New(options Options) *Processor {
+	return &Processor{
 		Sender:         options.Sender,
 		RetryPublisher: options.RetryPublisher,
 		Recorder:       options.Recorder,
@@ -76,11 +68,11 @@ func New(options Options) *Consumer {
 	}
 }
 
-func (c *Consumer) Consume(ctx context.Context, msg *contract.DispatchMessage) (err error) {
-	if c == nil || c.Sender == nil {
+func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) (err error) {
+	if p == nil || p.Sender == nil {
 		return fmt.Errorf("%w: sender is required", contract.ErrInvalidRequest)
 	}
-	if c.Recorder == nil {
+	if p.Recorder == nil {
 		return fmt.Errorf("%w: recorder is required", contract.ErrInvalidRequest)
 	}
 	if err := validateMessage(msg); err != nil {
@@ -88,27 +80,26 @@ func (c *Consumer) Consume(ctx context.Context, msg *contract.DispatchMessage) (
 	}
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			err = c.handleFailure(ctx, msg, fmt.Errorf("consume panic: %v", recovered))
+			err = p.retryOrSaveFailure(ctx, msg, fmt.Errorf("process panic: %v", recovered))
 		}
 	}()
 
-	now := time.Now
-	if c.Now != nil {
-		now = c.Now
+	current := time.Now()
+	if p.Now != nil {
+		current = p.Now()
 	}
-	current := now()
 
 	if current.Before(msg.ExpectedSendAt) {
-		return c.publish(ctx, msg, false)
+		return p.publish(ctx, msg, false)
 	}
 	if current.After(msg.ExpireAt) {
-		return c.saveRecord(ctx, msg, StatusExpired, "")
+		return p.saveRecord(ctx, msg, StatusExpired, "")
 	}
-	if err := c.Sender.Send(ctx, msg); err != nil {
-		return c.handleFailure(ctx, msg, err)
+	if err := p.Sender.Send(ctx, msg); err != nil {
+		return p.retryOrSaveFailure(ctx, msg, err)
 	}
 
-	return c.saveRecord(ctx, msg, StatusSuccess, "")
+	return p.saveRecord(ctx, msg, StatusSuccess, "")
 }
 
 func validateMessage(msg *contract.DispatchMessage) error {
@@ -139,63 +130,56 @@ func validateMessage(msg *contract.DispatchMessage) error {
 	return nil
 }
 
-func (c *Consumer) handleFailure(ctx context.Context, msg *contract.DispatchMessage, err error) error {
-	maxRetry := c.MaxRetry
+func (p *Processor) retryOrSaveFailure(ctx context.Context, msg *contract.DispatchMessage, err error) error {
+	maxRetry := p.MaxRetry
 	if maxRetry <= 0 {
 		maxRetry = DefaultMaxRetry
 	}
 	if msg.RetryCount < maxRetry {
-		if retryErr := c.publish(ctx, msg, true); retryErr != nil {
+		if retryErr := p.publish(ctx, msg, true); retryErr != nil {
 			return retryErr
 		}
-		if c.LogError != nil {
-			c.LogError(ctx, "send message failed and moved to retry", err)
+		if p.LogError != nil {
+			p.LogError(ctx, "send message failed and moved to retry", err)
 		}
 		return nil
 	}
-	return c.saveRecord(ctx, msg, StatusFailed, err.Error())
+	return p.saveRecord(ctx, msg, StatusFailed, err.Error())
 }
 
-func (c *Consumer) publish(ctx context.Context, msg *contract.DispatchMessage, incrementRetry bool) error {
-	if c.RetryPublisher == nil {
+func (p *Processor) publish(ctx context.Context, msg *contract.DispatchMessage, incrementRetry bool) error {
+	if p.RetryPublisher == nil {
 		return fmt.Errorf("%w: retry publisher is required", contract.ErrTemporaryFailure)
 	}
 
-	now := time.Now
-	if c.Now != nil {
-		now = c.Now
-	}
-	retryDelay := c.RetryDelay
+	retryDelay := p.RetryDelay
 	if retryDelay <= 0 {
 		retryDelay = time.Minute
 	}
 
 	retry := *msg
 	if incrementRetry {
+		now := time.Now()
+		if p.Now != nil {
+			now = p.Now()
+		}
 		retry.RetryCount++
-		retry.ExpectedSendAt = now().Add(retryDelay)
+		retry.ExpectedSendAt = now.Add(retryDelay)
 	}
 
-	return c.RetryPublisher.Publish(ctx, &retry)
+	return p.RetryPublisher.Publish(ctx, &retry)
 }
 
-func (c *Consumer) saveRecord(ctx context.Context, msg *contract.DispatchMessage, status Status, errorMessage string) error {
-	now := time.Now
-	if c.Now != nil {
-		now = c.Now
+func (p *Processor) saveRecord(ctx context.Context, msg *contract.DispatchMessage, status Status, errorMessage string) error {
+	now := time.Now()
+	if p.Now != nil {
+		now = p.Now()
 	}
-	return c.Recorder.Save(ctx, &SendRecord{
-		MessageID:      msg.MessageID,
-		IdempotencyKey: msg.IdempotencyKey,
-		TenantID:       msg.TenantID,
-		MessageType:    msg.MessageType,
-		Source:         msg.Source,
-		Status:         status,
-		RetryCount:     msg.RetryCount,
-		ErrorMessage:   errorMessage,
-		CreatedAt:      msg.CreatedAt,
-		ExpectedSendAt: msg.ExpectedSendAt,
-		ExpireAt:       msg.ExpireAt,
-		UpdatedAt:      now(),
+	record := *msg
+	return p.Recorder.Save(ctx, &SendRecord{
+		DispatchMessage: record,
+		Status:          status,
+		ErrorMessage:    errorMessage,
+		UpdatedAt:       now,
 	})
 }

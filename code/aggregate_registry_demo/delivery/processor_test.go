@@ -1,4 +1,4 @@
-package consumer
+package delivery
 
 import (
 	"context"
@@ -41,11 +41,11 @@ func (r *stubRecorder) Save(_ context.Context, record *SendRecord) error {
 	return nil
 }
 
-func TestConsumeSuccess(t *testing.T) {
+func TestProcessSuccess(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	sender := &stubSender{}
 	recorder := &stubRecorder{}
-	c := New(Options{
+	p := New(Options{
 		Sender:   sender,
 		Recorder: recorder,
 		Now: func() time.Time {
@@ -53,9 +53,9 @@ func TestConsumeSuccess(t *testing.T) {
 		},
 	})
 
-	err := c.Consume(context.Background(), newMessage(now))
+	err := p.Process(context.Background(), newMessage(now))
 	if err != nil {
-		t.Fatalf("Consume failed: %v", err)
+		t.Fatalf("Process failed: %v", err)
 	}
 	if sender.sent == nil {
 		t.Fatal("expected sender to be called")
@@ -71,11 +71,11 @@ func TestConsumeSuccess(t *testing.T) {
 	}
 }
 
-func TestConsumeRetryOnSendFailure(t *testing.T) {
+func TestProcessRetryOnSendFailure(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	retryPublisher := &stubRetryPublisher{}
 	recorder := &stubRecorder{}
-	c := New(Options{
+	p := New(Options{
 		Sender: &stubSender{
 			err: errors.New("send failed"),
 		},
@@ -87,9 +87,9 @@ func TestConsumeRetryOnSendFailure(t *testing.T) {
 		},
 	})
 
-	err := c.Consume(context.Background(), newMessage(now))
+	err := p.Process(context.Background(), newMessage(now))
 	if err != nil {
-		t.Fatalf("Consume failed: %v", err)
+		t.Fatalf("Process failed: %v", err)
 	}
 	if retryPublisher.msg == nil {
 		t.Fatal("expected retry message to be published")
@@ -105,10 +105,10 @@ func TestConsumeRetryOnSendFailure(t *testing.T) {
 	}
 }
 
-func TestConsumeBeforeExpectedSendAt(t *testing.T) {
+func TestProcessBeforeExpectedSendAt(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	retryPublisher := &stubRetryPublisher{}
-	c := New(Options{
+	p := New(Options{
 		Sender:         &stubSender{},
 		RetryPublisher: retryPublisher,
 		Recorder:       &stubRecorder{},
@@ -120,9 +120,9 @@ func TestConsumeBeforeExpectedSendAt(t *testing.T) {
 	msg := newMessage(now)
 	msg.ExpectedSendAt = now.Add(2 * time.Minute)
 
-	err := c.Consume(context.Background(), msg)
+	err := p.Process(context.Background(), msg)
 	if err != nil {
-		t.Fatalf("Consume failed: %v", err)
+		t.Fatalf("Process failed: %v", err)
 	}
 	if retryPublisher.msg == nil {
 		t.Fatal("expected message to be re-published")
@@ -135,10 +135,10 @@ func TestConsumeBeforeExpectedSendAt(t *testing.T) {
 	}
 }
 
-func TestConsumeExpired(t *testing.T) {
+func TestProcessExpired(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 31, 0, 0, time.UTC)
 	recorder := &stubRecorder{}
-	c := New(Options{
+	p := New(Options{
 		Sender:   &stubSender{},
 		Recorder: recorder,
 		Now: func() time.Time {
@@ -149,9 +149,9 @@ func TestConsumeExpired(t *testing.T) {
 	msg := newMessage(time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC))
 	msg.ExpireAt = time.Date(2026, 4, 29, 13, 30, 0, 0, time.UTC)
 
-	err := c.Consume(context.Background(), msg)
+	err := p.Process(context.Background(), msg)
 	if err != nil {
-		t.Fatalf("Consume failed: %v", err)
+		t.Fatalf("Process failed: %v", err)
 	}
 	if recorder.record == nil {
 		t.Fatal("expected expired record")
@@ -161,10 +161,10 @@ func TestConsumeExpired(t *testing.T) {
 	}
 }
 
-func TestConsumeFinalFailure(t *testing.T) {
+func TestProcessFinalFailure(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	recorder := &stubRecorder{}
-	c := New(Options{
+	p := New(Options{
 		Sender: &stubSender{
 			err: errors.New("send failed"),
 		},
@@ -178,9 +178,9 @@ func TestConsumeFinalFailure(t *testing.T) {
 	msg := newMessage(now)
 	msg.RetryCount = 3
 
-	err := c.Consume(context.Background(), msg)
+	err := p.Process(context.Background(), msg)
 	if err != nil {
-		t.Fatalf("Consume failed: %v", err)
+		t.Fatalf("Process failed: %v", err)
 	}
 	if recorder.record == nil {
 		t.Fatal("expected failed record")
@@ -190,10 +190,10 @@ func TestConsumeFinalFailure(t *testing.T) {
 	}
 }
 
-func TestConsumeThirdRetryStillPublishes(t *testing.T) {
+func TestProcessThirdRetryStillPublishes(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	retryPublisher := &stubRetryPublisher{}
-	c := New(Options{
+	p := New(Options{
 		Sender: &stubSender{
 			err: errors.New("send failed"),
 		},
@@ -208,9 +208,9 @@ func TestConsumeThirdRetryStillPublishes(t *testing.T) {
 	msg := newMessage(now)
 	msg.RetryCount = 2
 
-	err := c.Consume(context.Background(), msg)
+	err := p.Process(context.Background(), msg)
 	if err != nil {
-		t.Fatalf("Consume failed: %v", err)
+		t.Fatalf("Process failed: %v", err)
 	}
 	if retryPublisher.msg == nil {
 		t.Fatal("expected retry message to be published")
@@ -220,10 +220,10 @@ func TestConsumeThirdRetryStillPublishes(t *testing.T) {
 	}
 }
 
-func TestConsumePanicMovesToRetry(t *testing.T) {
+func TestProcessPanicMovesToRetry(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	retryPublisher := &stubRetryPublisher{}
-	c := New(Options{
+	p := New(Options{
 		Sender: &stubSender{
 			panicValue: "boom",
 		},
@@ -234,9 +234,9 @@ func TestConsumePanicMovesToRetry(t *testing.T) {
 		},
 	})
 
-	err := c.Consume(context.Background(), newMessage(now))
+	err := p.Process(context.Background(), newMessage(now))
 	if err != nil {
-		t.Fatalf("Consume failed: %v", err)
+		t.Fatalf("Process failed: %v", err)
 	}
 	if retryPublisher.msg == nil {
 		t.Fatal("expected retry message to be published")
