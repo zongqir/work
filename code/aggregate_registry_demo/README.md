@@ -74,7 +74,7 @@
 - `email` 和 `webhook` 走本地模板资产
 - `sms` 直接使用 `templateCode + kv`
 
-生产级契约入口见 [contract.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/contract/contract.go:1)：
+生产级契约入口见 [contract.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/contract/contract.go:1) 和 [types.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/contract/types.go:1)：
 
 - `Handler`：业务方必须实现的最小接口
 - `MessageType()`：业务方自己定义消息标识
@@ -84,7 +84,7 @@
 - `RealtimeIdempotencyKey(...)`：业务方自己返回实时幂等 key
 - `BizAggregateRequest`：聚合请求
 - `RealtimeRequest`：实时请求
-- `RealtimeDecision`：实时判断结果
+- `RealtimeResult`：实时判断结果
 - `DispatchMessage`：最终要分发的消息载体
   自带 `message_id / idempotency_key / source / retry_count / created_at / expected_send_at / expire_at`
 - `ErrInvalidRequest`：请求非法
@@ -212,6 +212,7 @@ code/aggregate_registry_demo/
     bootstrap.go
   contract/
     contract.go
+    types.go
     registry_test.go
   handlers/
     xdr_risk_digest/
@@ -220,8 +221,6 @@ code/aggregate_registry_demo/
   sample_request.json
   sample_result.json
   sample_policy.json
-  messages/
-    envelope.go
   preview/
     preview.go
     preview_test.go

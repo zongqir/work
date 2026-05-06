@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"notes/code/aggregate_registry_demo/contract"
-	"notes/code/aggregate_registry_demo/messages"
 )
 
 type stubSender struct {
@@ -258,7 +257,7 @@ func newMessage(createdAt time.Time) *contract.DispatchMessage {
 		CreatedAt:      createdAt,
 		ExpectedSendAt: createdAt,
 		ExpireAt:       createdAt.Add(30 * time.Minute),
-		BizVars: messages.TemplateVars{
+		BizVars: contract.TemplateVars{
 			"k": "v",
 		},
 	}

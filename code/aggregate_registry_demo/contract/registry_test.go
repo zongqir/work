@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-
-	"notes/code/aggregate_registry_demo/messages"
 )
 
 type stubHandler struct{}
@@ -19,11 +17,11 @@ func resetRegistryForTest() {
 
 func (stubHandler) MessageType() string { return "stub" }
 func (stubHandler) NewFilter() any      { return nil }
-func (stubHandler) Aggregate(_ context.Context, _ *BizAggregateRequest) (*messages.BizAggregateResult, error) {
-	return &messages.BizAggregateResult{BizVars: messages.TemplateVars{}}, nil
+func (stubHandler) Aggregate(_ context.Context, _ *BizAggregateRequest) (*BizAggregateResult, error) {
+	return &BizAggregateResult{BizVars: TemplateVars{}}, nil
 }
-func (stubHandler) Evaluate(_ context.Context, _ *RealtimeRequest) (*RealtimeDecision, error) {
-	return &RealtimeDecision{Matched: false, IdempotencyKey: ""}, nil
+func (stubHandler) Evaluate(_ context.Context, _ *RealtimeRequest) (*RealtimeResult, error) {
+	return &RealtimeResult{Matched: false, IdempotencyKey: ""}, nil
 }
 
 func TestResolveNotFound(t *testing.T) {
@@ -75,9 +73,9 @@ type stubHandlerWithType string
 
 func (s stubHandlerWithType) MessageType() string { return string(s) }
 func (s stubHandlerWithType) NewFilter() any      { return nil }
-func (s stubHandlerWithType) Aggregate(_ context.Context, _ *BizAggregateRequest) (*messages.BizAggregateResult, error) {
-	return &messages.BizAggregateResult{BizVars: messages.TemplateVars{}}, nil
+func (s stubHandlerWithType) Aggregate(_ context.Context, _ *BizAggregateRequest) (*BizAggregateResult, error) {
+	return &BizAggregateResult{BizVars: TemplateVars{}}, nil
 }
-func (s stubHandlerWithType) Evaluate(_ context.Context, req *RealtimeRequest) (*RealtimeDecision, error) {
-	return &RealtimeDecision{Matched: true, IdempotencyKey: "biz"}, nil
+func (s stubHandlerWithType) Evaluate(_ context.Context, req *RealtimeRequest) (*RealtimeResult, error) {
+	return &RealtimeResult{Matched: true, IdempotencyKey: "biz"}, nil
 }

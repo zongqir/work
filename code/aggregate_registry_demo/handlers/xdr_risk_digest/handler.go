@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"notes/code/aggregate_registry_demo/contract"
-	"notes/code/aggregate_registry_demo/messages"
 )
 
 type Handler struct{}
@@ -36,17 +35,17 @@ func (h *Handler) NewFilter() any {
 	return &Filter{}
 }
 
-func (h *Handler) Aggregate(_ context.Context, req *contract.BizAggregateRequest) (*messages.BizAggregateResult, error) {
+func (h *Handler) Aggregate(_ context.Context, req *contract.BizAggregateRequest) (*contract.BizAggregateResult, error) {
 	filter, _ := req.Filter.(*Filter)
 	_ = filter
-	return &messages.BizAggregateResult{
-		BizVars: messages.TemplateVars{
+	return &contract.BizAggregateResult{
+		BizVars: contract.TemplateVars{
 			// business fills vars here
 		},
 	}, nil
 }
 
-func (h *Handler) Evaluate(_ context.Context, req *contract.RealtimeRequest) (*contract.RealtimeDecision, error) {
+func (h *Handler) Evaluate(_ context.Context, req *contract.RealtimeRequest) (*contract.RealtimeResult, error) {
 	filter, _ := req.Filter.(*Filter)
 	_ = filter
 
@@ -57,10 +56,10 @@ func (h *Handler) Evaluate(_ context.Context, req *contract.RealtimeRequest) (*c
 		idempotencyKey = event.EventID
 	}
 
-	return &contract.RealtimeDecision{
+	return &contract.RealtimeResult{
 		Matched:        true,
 		IdempotencyKey: idempotencyKey,
-		BizVars: messages.TemplateVars{
+		BizVars:        contract.TemplateVars{
 			// business fills vars here
 		},
 	}, nil

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"notes/code/aggregate_registry_demo/contract"
-	"notes/code/aggregate_registry_demo/messages"
 )
 
 type stubPublisher struct {
@@ -47,19 +46,19 @@ func init() {
 
 func (h *stubSendHandler) MessageType() string { return h.messageType }
 func (h *stubSendHandler) NewFilter() any      { return &stubFilter{} }
-func (h *stubSendHandler) Aggregate(_ context.Context, req *contract.BizAggregateRequest) (*messages.BizAggregateResult, error) {
+func (h *stubSendHandler) Aggregate(_ context.Context, req *contract.BizAggregateRequest) (*contract.BizAggregateResult, error) {
 	h.aggregateCalled = true
 	filter, ok := req.Filter.(*stubFilter)
 	if !ok {
 		return nil, contract.ErrInvalidRequest
 	}
-	return &messages.BizAggregateResult{
-		BizVars: messages.TemplateVars{
+	return &contract.BizAggregateResult{
+		BizVars: contract.TemplateVars{
 			"config": filter.K,
 		},
 	}, nil
 }
-func (h *stubSendHandler) Evaluate(_ context.Context, req *contract.RealtimeRequest) (*contract.RealtimeDecision, error) {
+func (h *stubSendHandler) Evaluate(_ context.Context, req *contract.RealtimeRequest) (*contract.RealtimeResult, error) {
 	h.realtimeCalled = true
 	filter, ok := req.Filter.(*stubFilter)
 	if !ok {
@@ -74,10 +73,10 @@ func (h *stubSendHandler) Evaluate(_ context.Context, req *contract.RealtimeRequ
 			}
 		}
 	}
-	return &contract.RealtimeDecision{
-		Matched: true,
+	return &contract.RealtimeResult{
+		Matched:        true,
 		IdempotencyKey: "biz-" + string(rune(event.Event+'0')),
-		BizVars: messages.TemplateVars{
+		BizVars: contract.TemplateVars{
 			"filter": filter.X,
 			"event":  event.Event,
 		},

@@ -9,12 +9,11 @@ import (
 	"time"
 
 	"notes/code/aggregate_registry_demo/contract"
-	"notes/code/aggregate_registry_demo/messages"
 )
 
 func TestBuildMessageRenderInputRejectsNil(t *testing.T) {
-	_, err := BuildMessageRenderInput(nil, &messages.BizAggregateResult{
-		BizVars: messages.TemplateVars{"k": "v"},
+	_, err := BuildMessageRenderInput(nil, &contract.BizAggregateResult{
+		BizVars: contract.TemplateVars{"k": "v"},
 	})
 	if !errors.Is(err, contract.ErrInvalidRequest) {
 		t.Fatalf("expected ErrInvalidRequest for nil request, got %v", err)
@@ -28,8 +27,8 @@ func TestBuildMessageRenderInputRejectsNil(t *testing.T) {
 
 func TestRenderByPolicyRejectsNil(t *testing.T) {
 	req := &contract.BizAggregateRequest{TenantID: "t_1"}
-	result := &messages.BizAggregateResult{
-		BizVars: messages.TemplateVars{"total_count": "1"},
+	result := &contract.BizAggregateResult{
+		BizVars: contract.TemplateVars{"total_count": "1"},
 	}
 	policy := &EffectivePolicy{
 		TenantID:    "t_1",
@@ -54,8 +53,8 @@ func TestRenderByPolicyRejectsNil(t *testing.T) {
 
 func TestRenderByPolicyRejectsEscapingTemplatePath(t *testing.T) {
 	req := &contract.BizAggregateRequest{TenantID: "t_1"}
-	result := &messages.BizAggregateResult{
-		BizVars: messages.TemplateVars{"total_count": "1"},
+	result := &contract.BizAggregateResult{
+		BizVars: contract.TemplateVars{"total_count": "1"},
 	}
 	policy := &EffectivePolicy{
 		TenantID:    "t_1",

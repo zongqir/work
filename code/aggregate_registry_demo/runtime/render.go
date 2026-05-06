@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"notes/code/aggregate_registry_demo/contract"
-	"notes/code/aggregate_registry_demo/messages"
 )
 
 // EffectivePolicy 是通知执行层根据 tenant_id + message_type 查到的生效策略。
@@ -27,7 +26,7 @@ type ChannelPolicy struct {
 
 // MessageRenderInput 是模板最终拿到的输入。
 type MessageRenderInput struct {
-	Vars map[string]messages.TemplateVars
+	Vars map[string]contract.TemplateVars
 }
 
 type RenderedChannelMessage struct {
@@ -64,13 +63,13 @@ func loadBizAggregateRequest(path string) (*contract.BizAggregateRequest, error)
 	return &req, nil
 }
 
-func loadBizAggregateResult(path string) (*messages.BizAggregateResult, error) {
+func loadBizAggregateResult(path string) (*contract.BizAggregateResult, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var result messages.BizAggregateResult
+	var result contract.BizAggregateResult
 	if err := json.Unmarshal(data, &result); err != nil {
 		return nil, err
 	}
@@ -90,7 +89,7 @@ func loadEffectivePolicy(path string) (*EffectivePolicy, error) {
 	return &policy, nil
 }
 
-func BuildMessageRenderInput(req *contract.BizAggregateRequest, result *messages.BizAggregateResult) (MessageRenderInput, error) {
+func BuildMessageRenderInput(req *contract.BizAggregateRequest, result *contract.BizAggregateResult) (MessageRenderInput, error) {
 	if req == nil {
 		return MessageRenderInput{}, fmt.Errorf("%w: aggregate request is required", contract.ErrInvalidRequest)
 	}
@@ -101,23 +100,23 @@ func BuildMessageRenderInput(req *contract.BizAggregateRequest, result *messages
 		return MessageRenderInput{}, fmt.Errorf("%w: biz_vars is required", contract.ErrInvalidRequest)
 	}
 
-	bizVars := make(messages.TemplateVars, len(result.BizVars))
+	bizVars := make(contract.TemplateVars, len(result.BizVars))
 	for key, value := range result.BizVars {
 		bizVars[key] = value
 	}
-	sysVars := messages.TemplateVars{
+	sysVars := contract.TemplateVars{
 		"window_label": formatWindowLabel(req.WindowStart, req.WindowEnd),
 	}
 
 	return MessageRenderInput{
-		Vars: map[string]messages.TemplateVars{
+		Vars: map[string]contract.TemplateVars{
 			"biz": bizVars,
 			"sys": sysVars,
 		},
 	}, nil
 }
 
-func RenderByPolicy(req *contract.BizAggregateRequest, result *messages.BizAggregateResult, policy *EffectivePolicy, templateRoot string) ([]RenderedChannelMessage, error) {
+func RenderByPolicy(req *contract.BizAggregateRequest, result *contract.BizAggregateResult, policy *EffectivePolicy, templateRoot string) ([]RenderedChannelMessage, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w: aggregate request is required", contract.ErrInvalidRequest)
 	}

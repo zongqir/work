@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"notes/code/aggregate_registry_demo/contract"
-	"notes/code/aggregate_registry_demo/messages"
 	"notes/code/aggregate_registry_demo/runtime"
 )
 
@@ -71,13 +70,13 @@ func loadRequest(path string) (*contract.BizAggregateRequest, error) {
 	return &req, nil
 }
 
-func loadResult(path string) (*messages.BizAggregateResult, error) {
+func loadResult(path string) (*contract.BizAggregateResult, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var result messages.BizAggregateResult
+	var result contract.BizAggregateResult
 	if err := json.Unmarshal(data, &result); err != nil {
 		return nil, err
 	}
