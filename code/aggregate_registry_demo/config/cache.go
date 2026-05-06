@@ -10,13 +10,19 @@ import (
 	"notes/code/aggregate_registry_demo/contract"
 )
 
+const (
+	defaultTTL            = 5 * time.Minute
+	defaultMaxStale       = 30 * time.Minute
+	defaultRefreshTimeout = 10 * time.Second
+)
+
 type Cache struct {
 	TTL            time.Duration
 	MaxStale       time.Duration
 	RefreshTimeout time.Duration
 
 	Now func() time.Time
-	mu  sync.RWMutex
+	mu  sync.Mutex
 
 	items      map[string]map[string]json.RawMessage
 	loadedAt   time.Time
@@ -39,74 +45,100 @@ func (c *Cache) Pick(
 		return nil, fmt.Errorf("%w: load_all is required", contract.ErrInvalidRequest)
 	}
 
-	nowFn := c.Now
-	if nowFn == nil {
-		nowFn = time.Now
-	}
-	now := nowFn()
+	now := c.now()
+	ttl := c.ttl()
+	maxStale := c.maxStale()
 
-	c.mu.RLock()
+	c.mu.Lock()
 	items := c.items
 	loadedAt := c.loadedAt
-	refreshing := c.refreshing
-	c.mu.RUnlock()
-
-	ttl := c.TTL
-	if ttl <= 0 {
-		ttl = 5 * time.Minute
-	}
-	maxStale := c.MaxStale
-	if maxStale <= 0 {
-		maxStale = 30 * time.Minute
-	}
-	refreshTimeout := c.RefreshTimeout
-	if refreshTimeout <= 0 {
-		refreshTimeout = 10 * time.Second
-	}
-
 	age := now.Sub(loadedAt)
-	if items == nil || loadedAt.IsZero() || age >= maxStale {
+	needsReload := items == nil || loadedAt.IsZero() || age >= maxStale
+	shouldRefresh := !needsReload && age >= ttl && !c.refreshing
+	if shouldRefresh {
+		c.refreshing = true
+	}
+	c.mu.Unlock()
+
+	if needsReload {
 		all, err := loadAll(ctx)
 		if err != nil {
 			return nil, err
 		}
-		c.mu.Lock()
-		c.items = all
-		c.loadedAt = nowFn()
-		c.refreshing = false
-		items = c.items
-		c.mu.Unlock()
-	} else if age >= ttl && !refreshing {
-		c.mu.Lock()
-		if !c.refreshing {
-			c.refreshing = true
-			go func() {
-				refreshCtx, cancel := context.WithTimeout(context.Background(), refreshTimeout)
-				defer cancel()
-
-				all, err := loadAll(refreshCtx)
-				c.mu.Lock()
-				defer c.mu.Unlock()
-				if err == nil {
-					c.items = all
-					c.loadedAt = nowFn()
-				} else if logError != nil {
-					logError(refreshCtx, "refresh config cache failed", err)
-				}
-				c.refreshing = false
-			}()
-		}
-		items = c.items
-		c.mu.Unlock()
+		c.store(all)
+		items = all
+	} else if shouldRefresh {
+		go c.refresh(loadAll, logError)
 	}
 
+	return pickFrom(items, tenantID, messageType), nil
+}
+
+func (c *Cache) refresh(
+	loadAll func(context.Context) (map[string]map[string]json.RawMessage, error),
+	logError func(context.Context, string, error),
+) {
+	refreshCtx, cancel := context.WithTimeout(context.Background(), c.refreshTimeout())
+	defer cancel()
+
+	all, err := loadAll(refreshCtx)
+	if err != nil {
+		c.mu.Lock()
+		c.refreshing = false
+		c.mu.Unlock()
+		if logError != nil {
+			logError(refreshCtx, "refresh config cache failed", err)
+		}
+		return
+	}
+
+	c.store(all)
+}
+
+func (c *Cache) store(items map[string]map[string]json.RawMessage) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.items = items
+	c.loadedAt = c.now()
+	c.refreshing = false
+}
+
+func pickFrom(items map[string]map[string]json.RawMessage, tenantID, messageType string) json.RawMessage {
 	tenantConfigs := items[tenantID]
 	if len(tenantConfigs) == 0 {
-		return nil, nil
+		return nil
 	}
 	cfg := tenantConfigs[messageType]
 	if len(cfg) == 0 {
-		return nil, nil
+		return nil
 	}
-	return cfg, nil
+	return cfg
+}
+
+func (c *Cache) now() time.Time {
+	if c.Now != nil {
+		return c.Now()
+	}
+	return time.Now()
+}
+
+func (c *Cache) ttl() time.Duration {
+	if c.TTL > 0 {
+		return c.TTL
+	}
+	return defaultTTL
+}
+
+func (c *Cache) maxStale() time.Duration {
+	if c.MaxStale > 0 {
+		return c.MaxStale
+	}
+	return defaultMaxStale
+}
+
+func (c *Cache) refreshTimeout() time.Duration {
+	if c.RefreshTimeout > 0 {
+		return c.RefreshTimeout
+	}
+	return defaultRefreshTimeout
 }

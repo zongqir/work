@@ -132,7 +132,6 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 		ExpectedSendAt: createdAt,
 		ExpireAt:       createdAt.Add(expireAfter),
 		BizVars:        result.BizVars,
-		EventBody:      marshalEventBody(event),
 	})
 }
 
@@ -193,11 +192,6 @@ func parseHandlerPayload(handler contract.Handler, name string, target any, raw 
 		return nil, fmt.Errorf("%w: parse %s for %s: %v", contract.ErrInvalidRequest, name, handler.MessageType(), err)
 	}
 	return target, nil
-}
-
-func marshalEventBody(event any) json.RawMessage {
-	data, _ := json.Marshal(event)
-	return data
 }
 
 func buildAggregateIdempotencyKey(tenantID, messageType string, windowStart, windowEnd time.Time) string {

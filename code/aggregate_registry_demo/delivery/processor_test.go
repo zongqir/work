@@ -91,33 +91,6 @@ func TestProcessSuccessWithoutCreatedAt(t *testing.T) {
 	}
 }
 
-func TestProcessSuccessWithoutMessageID(t *testing.T) {
-	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
-	sender := &stubSender{}
-	recorder := &stubRecorder{}
-	p := &Processor{
-		Sender:   sender,
-		Recorder: recorder,
-		Now: func() time.Time {
-			return now
-		},
-	}
-
-	msg := newMessage(now)
-	msg.MessageID = ""
-
-	err := p.Process(context.Background(), msg)
-	if err != nil {
-		t.Fatalf("Process failed: %v", err)
-	}
-	if sender.sent == nil {
-		t.Fatal("expected sender to be called")
-	}
-	if recorder.record == nil {
-		t.Fatal("expected record to be saved")
-	}
-}
-
 func TestProcessRetryOnSendFailure(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	publisher := &stubPublisher{}
@@ -269,7 +242,6 @@ func TestProcessThirdRetryStillPublishes(t *testing.T) {
 
 func newMessage(createdAt time.Time) *contract.DispatchMessage {
 	return &contract.DispatchMessage{
-		MessageID:      "m_1",
 		IdempotencyKey: "realtime:t_1:xdr_risk_digest:biz-1",
 		TenantID:       "t_1",
 		MessageType:    "xdr_risk_digest",

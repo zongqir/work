@@ -2,7 +2,6 @@ package contract
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"time"
 )
@@ -15,17 +14,15 @@ var (
 )
 
 type DispatchMessage struct {
-	MessageID      string          `json:"message_id"`
-	IdempotencyKey string          `json:"idempotency_key"`
-	TenantID       string          `json:"tenant_id"`
-	MessageType    string          `json:"message_type"`
-	Source         string          `json:"source"`
-	RetryCount     int             `json:"retry_count"`
-	CreatedAt      time.Time       `json:"created_at"`
-	ExpectedSendAt time.Time       `json:"expected_send_at"`
-	ExpireAt       time.Time       `json:"expire_at"`
-	BizVars        TemplateVars    `json:"biz_vars"`
-	EventBody      json.RawMessage `json:"event_body,omitempty"`
+	IdempotencyKey string       `json:"idempotency_key"`
+	TenantID       string       `json:"tenant_id"`
+	MessageType    string       `json:"message_type"`
+	Source         string       `json:"source"`
+	RetryCount     int          `json:"retry_count"`
+	CreatedAt      time.Time    `json:"created_at"`
+	ExpectedSendAt time.Time    `json:"expected_send_at"`
+	ExpireAt       time.Time    `json:"expire_at"`
+	BizVars        TemplateVars `json:"biz_vars"`
 }
 
 const (

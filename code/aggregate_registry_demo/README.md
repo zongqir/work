@@ -85,7 +85,7 @@
 - `RealtimeRequest`：实时请求
 - `RealtimeResult`：实时判断结果
 - `DispatchMessage`：最终要分发的消息载体
-  自带 `message_id / idempotency_key / source / retry_count / created_at / expected_send_at / expire_at` 等字段
+  自带 `idempotency_key / source / retry_count / created_at / expected_send_at / expire_at` 等字段
 - `ErrInvalidRequest`：请求非法
 - `ErrUnsupportedConfig`：配置不支持
 - `ErrTemporaryFailure`：临时失败，可由调用方决定是否重试
