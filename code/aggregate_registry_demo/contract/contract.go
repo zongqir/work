@@ -27,7 +27,7 @@ type BizAggregateRequest struct {
 type RealtimeRequest struct {
 	TenantID string          `json:"tenant_id"`
 	Filter   any             `json:"filter,omitempty"`
-	Event    json.RawMessage `json:"event,omitempty"`
+	Event    any              `json:"event,omitempty"`
 }
 
 type RealtimeDecision struct {

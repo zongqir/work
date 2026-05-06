@@ -2,8 +2,6 @@ package xdrriskdigest
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 
 	"notes/code/aggregate_registry_demo/contract"
 	"notes/code/aggregate_registry_demo/messages"
@@ -52,16 +50,16 @@ func (h *Handler) Evaluate(_ context.Context, req *contract.RealtimeRequest) (*c
 	filter, _ := req.Filter.(*Filter)
 	_ = filter
 
-	var event RealtimeEvent
-	if len(req.Event) > 0 && string(req.Event) != "null" {
-		if err := json.Unmarshal(req.Event, &event); err != nil {
-			return nil, fmt.Errorf("%w: parse realtime event: %v", contract.ErrInvalidRequest, err)
-		}
+	event, _ := req.Event.(*RealtimeEvent)
+
+	idempotencyKey := ""
+	if event != nil {
+		idempotencyKey = event.EventID
 	}
 
 	return &contract.RealtimeDecision{
 		Matched:        true,
-		IdempotencyKey: fmt.Sprintf("xdr_risk_digest:%s", event.EventID),
+		IdempotencyKey: idempotencyKey,
 		BizVars: messages.TemplateVars{
 			// business fills vars here
 		},

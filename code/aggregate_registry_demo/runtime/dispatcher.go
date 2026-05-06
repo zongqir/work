@@ -118,7 +118,7 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 	})
 }
 
-func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType string, eventBody json.RawMessage) error {
+func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType string, event any) error {
 	handler, config, err := d.prepare(ctx, tenantID, messageType)
 	if err != nil {
 		return err
@@ -133,7 +133,7 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 	realtimeReq := &contract.RealtimeRequest{
 		TenantID: tenantID,
 		Filter:   filter,
-		Event:    eventBody,
+		Event:    event,
 	}
 
 	decision, err := handler.Evaluate(ctx, realtimeReq)
@@ -175,7 +175,7 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 		ExpectedSendAt: createdAt,
 		ExpireAt:       createdAt.Add(expireAfter),
 		BizVars:        decision.BizVars,
-		EventBody:      eventBody,
+		EventBody:      marshalEventBody(event),
 	})
 }
 
@@ -247,6 +247,14 @@ func (c messageConfig) filterForRealtime() json.RawMessage {
 		return c.Filter
 	}
 	return c.RealtimeFilter
+}
+
+func marshalEventBody(event any) json.RawMessage {
+	if raw, ok := event.(json.RawMessage); ok {
+		return raw
+	}
+	data, _ := json.Marshal(event)
+	return data
 }
 
 func buildAggregateIdempotencyKey(tenantID, messageType string, windowStart, windowEnd time.Time) string {

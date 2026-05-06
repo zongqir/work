@@ -66,9 +66,12 @@ func (h *stubSendHandler) Evaluate(_ context.Context, req *contract.RealtimeRequ
 		return nil, contract.ErrInvalidRequest
 	}
 	var event stubRealtimeEvent
-	if len(req.Event) > 0 && string(req.Event) != "null" {
-		if err := json.Unmarshal(req.Event, &event); err != nil {
-			return nil, contract.ErrInvalidRequest
+	switch e := req.Event.(type) {
+	case json.RawMessage:
+		if len(e) > 0 && string(e) != "null" {
+			if err := json.Unmarshal(e, &event); err != nil {
+				return nil, contract.ErrInvalidRequest
+			}
 		}
 	}
 	return &contract.RealtimeDecision{

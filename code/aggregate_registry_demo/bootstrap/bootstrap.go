@@ -78,11 +78,11 @@ func (s *Service) SendAggregate(ctx context.Context, tenantID, messageType strin
 	return s.dispatcher.SendAggregate(ctx, tenantID, messageType, windowStart, windowEnd)
 }
 
-func (s *Service) SendRealtime(ctx context.Context, tenantID, messageType string, eventBody json.RawMessage) error {
+func (s *Service) SendRealtime(ctx context.Context, tenantID, messageType string, event any) error {
 	if s == nil || s.dispatcher == nil {
 		return fmt.Errorf("%w: service is nil", contract.ErrInvalidRequest)
 	}
-	return s.dispatcher.SendRealtime(ctx, tenantID, messageType, eventBody)
+	return s.dispatcher.SendRealtime(ctx, tenantID, messageType, event)
 }
 
 func (s *Service) Close() {
