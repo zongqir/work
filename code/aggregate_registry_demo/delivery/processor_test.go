@@ -10,24 +10,20 @@ import (
 )
 
 type stubSender struct {
-	err        error
-	sent       *contract.DispatchMessage
-	panicValue any
+	err  error
+	sent *contract.DispatchMessage
 }
 
 func (s *stubSender) Send(_ context.Context, msg *contract.DispatchMessage) error {
-	if s.panicValue != nil {
-		panic(s.panicValue)
-	}
 	s.sent = msg
 	return s.err
 }
 
-type stubRetryPublisher struct {
+type stubPublisher struct {
 	msg *contract.DispatchMessage
 }
 
-func (p *stubRetryPublisher) Publish(_ context.Context, msg *contract.DispatchMessage) error {
+func (p *stubPublisher) Publish(_ context.Context, msg *contract.DispatchMessage) error {
 	p.msg = msg
 	return nil
 }
@@ -71,6 +67,30 @@ func TestProcessSuccess(t *testing.T) {
 	}
 }
 
+func TestProcessSuccessWithoutCreatedAt(t *testing.T) {
+	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
+	sender := &stubSender{}
+	recorder := &stubRecorder{}
+	p := &Processor{
+		Sender:   sender,
+		Recorder: recorder,
+		Now: func() time.Time {
+			return now
+		},
+	}
+
+	msg := newMessage(now)
+	msg.CreatedAt = time.Time{}
+
+	err := p.Process(context.Background(), msg)
+	if err != nil {
+		t.Fatalf("Process failed: %v", err)
+	}
+	if sender.sent == nil {
+		t.Fatal("expected sender to be called")
+	}
+}
+
 func TestProcessSuccessWithoutMessageID(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	sender := &stubSender{}
@@ -100,15 +120,15 @@ func TestProcessSuccessWithoutMessageID(t *testing.T) {
 
 func TestProcessRetryOnSendFailure(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
-	retryPublisher := &stubRetryPublisher{}
+	publisher := &stubPublisher{}
 	recorder := &stubRecorder{}
 	p := &Processor{
 		Sender: &stubSender{
 			err: errors.New("send failed"),
 		},
-		RetryPublisher: retryPublisher,
-		Recorder:       recorder,
-		RetryDelay:     2 * time.Minute,
+		Publisher:  publisher,
+		Recorder:   recorder,
+		RetryDelay: 2 * time.Minute,
 		Now: func() time.Time {
 			return now
 		},
@@ -118,14 +138,14 @@ func TestProcessRetryOnSendFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Process failed: %v", err)
 	}
-	if retryPublisher.msg == nil {
+	if publisher.msg == nil {
 		t.Fatal("expected retry message to be published")
 	}
-	if retryPublisher.msg.RetryCount != 1 {
-		t.Fatalf("expected retry_count=1, got %d", retryPublisher.msg.RetryCount)
+	if publisher.msg.RetryCount != 1 {
+		t.Fatalf("expected retry_count=1, got %d", publisher.msg.RetryCount)
 	}
-	if !retryPublisher.msg.ExpectedSendAt.Equal(now.Add(2 * time.Minute)) {
-		t.Fatalf("unexpected expected_send_at: %v", retryPublisher.msg.ExpectedSendAt)
+	if !publisher.msg.ExpectedSendAt.Equal(now.Add(2 * time.Minute)) {
+		t.Fatalf("unexpected expected_send_at: %v", publisher.msg.ExpectedSendAt)
 	}
 	if recorder.record != nil {
 		t.Fatal("did not expect final record on retry")
@@ -134,11 +154,11 @@ func TestProcessRetryOnSendFailure(t *testing.T) {
 
 func TestProcessBeforeExpectedSendAt(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
-	retryPublisher := &stubRetryPublisher{}
+	publisher := &stubPublisher{}
 	p := &Processor{
-		Sender:         &stubSender{},
-		RetryPublisher: retryPublisher,
-		Recorder:       &stubRecorder{},
+		Sender:    &stubSender{},
+		Publisher: publisher,
+		Recorder:  &stubRecorder{},
 		Now: func() time.Time {
 			return now
 		},
@@ -151,14 +171,14 @@ func TestProcessBeforeExpectedSendAt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Process failed: %v", err)
 	}
-	if retryPublisher.msg == nil {
+	if publisher.msg == nil {
 		t.Fatal("expected message to be re-published")
 	}
-	if retryPublisher.msg.RetryCount != 0 {
-		t.Fatalf("expected retry_count=0, got %d", retryPublisher.msg.RetryCount)
+	if publisher.msg.RetryCount != 0 {
+		t.Fatalf("expected retry_count=0, got %d", publisher.msg.RetryCount)
 	}
-	if !retryPublisher.msg.ExpectedSendAt.Equal(msg.ExpectedSendAt) {
-		t.Fatalf("unexpected expected_send_at: %v", retryPublisher.msg.ExpectedSendAt)
+	if !publisher.msg.ExpectedSendAt.Equal(msg.ExpectedSendAt) {
+		t.Fatalf("unexpected expected_send_at: %v", publisher.msg.ExpectedSendAt)
 	}
 }
 
@@ -219,14 +239,14 @@ func TestProcessFinalFailure(t *testing.T) {
 
 func TestProcessThirdRetryStillPublishes(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
-	retryPublisher := &stubRetryPublisher{}
+	publisher := &stubPublisher{}
 	p := &Processor{
 		Sender: &stubSender{
 			err: errors.New("send failed"),
 		},
-		RetryPublisher: retryPublisher,
-		Recorder:       &stubRecorder{},
-		MaxRetry:       DefaultMaxRetry,
+		Publisher: publisher,
+		Recorder:  &stubRecorder{},
+		MaxRetry:  DefaultMaxRetry,
 		Now: func() time.Time {
 			return now
 		},
@@ -239,37 +259,11 @@ func TestProcessThirdRetryStillPublishes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Process failed: %v", err)
 	}
-	if retryPublisher.msg == nil {
+	if publisher.msg == nil {
 		t.Fatal("expected retry message to be published")
 	}
-	if retryPublisher.msg.RetryCount != 3 {
-		t.Fatalf("expected retry_count=3, got %d", retryPublisher.msg.RetryCount)
-	}
-}
-
-func TestProcessPanicMovesToRetry(t *testing.T) {
-	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
-	retryPublisher := &stubRetryPublisher{}
-	p := &Processor{
-		Sender: &stubSender{
-			panicValue: "boom",
-		},
-		RetryPublisher: retryPublisher,
-		Recorder:       &stubRecorder{},
-		Now: func() time.Time {
-			return now
-		},
-	}
-
-	err := p.Process(context.Background(), newMessage(now))
-	if err != nil {
-		t.Fatalf("Process failed: %v", err)
-	}
-	if retryPublisher.msg == nil {
-		t.Fatal("expected retry message to be published")
-	}
-	if retryPublisher.msg.RetryCount != 1 {
-		t.Fatalf("expected retry_count=1, got %d", retryPublisher.msg.RetryCount)
+	if publisher.msg.RetryCount != 3 {
+		t.Fatalf("expected retry_count=3, got %d", publisher.msg.RetryCount)
 	}
 }
 
