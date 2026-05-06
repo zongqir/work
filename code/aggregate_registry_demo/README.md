@@ -97,7 +97,7 @@
 
 简单模式接入时，外部不需要自己构建 `Publisher`，只需要准备：
 
-- `PulsarURL`
+- `PulsarClientOptions`
 - `Topic`
 - `LoadAll`
 
@@ -105,9 +105,11 @@
 
 ```go
 svc, err := bootstrap.New(bootstrap.Config{
-    PulsarURL: "pulsar://127.0.0.1:6650",
-    Topic:     "persistent://public/default/aes-dispatch",
-    LoadAll:   loadAllConfigs,
+    PulsarClientOptions: pulsar.ClientOptions{
+        URL: "pulsar://127.0.0.1:6650",
+    },
+    Topic:   "persistent://public/default/aes-dispatch",
+    LoadAll: loadAllConfigs,
 })
 if err != nil {
     return err
@@ -158,7 +160,7 @@ dispatcher := &dispatch.Dispatcher{
 
 - `notification` 内部自己跑一个定时判断器，不额外拆服务
 - 定时判断器每次拉远端配置
-- 配置里 `enabled=true` 且 `aggregate_period_minutes > 0` 才参与判断
+- 配置里 `aggregate_enabled=true` 且 `aggregate_period_minutes > 0` 才参与判断
 - 它只判断“这个租户这个消息类型这一轮该不该跑聚合”
 - 命中后直接调用 `SendAggregate(...)`
 - 调度状态只记录 `last_window_end`
@@ -291,5 +293,5 @@ preview, err := preview.FromFiles(
 如果想把结果打印成 JSON：
 
 ```go
-data, err := preview.Marshal(preview)
+data, err := json.MarshalIndent(preview, "", "  ")
 ```

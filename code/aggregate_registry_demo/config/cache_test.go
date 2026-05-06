@@ -19,7 +19,7 @@ func TestCacheAsyncRefreshUsesTimeout(t *testing.T) {
 		},
 		items: map[string]map[string]json.RawMessage{
 			"t_1": {
-				"send_test": json.RawMessage(`{"enabled":true}`),
+				"send_test": json.RawMessage(`{"realtime_enabled":true}`),
 			},
 		},
 		loadedAt: time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC),

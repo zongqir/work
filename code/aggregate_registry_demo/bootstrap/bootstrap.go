@@ -13,8 +13,7 @@ import (
 )
 
 type Config struct {
-	PulsarURL            string
-	PulsarClientOptions  *pulsar.ClientOptions
+	PulsarClientOptions  pulsar.ClientOptions
 	Topic                string
 	LoadAll              func(ctx context.Context) (map[string]map[string]json.RawMessage, error)
 	LogError             func(ctx context.Context, msg string, err error)
@@ -31,18 +30,11 @@ type Service struct {
 }
 
 func New(config Config) (*Service, error) {
-	clientOptions := pulsar.ClientOptions{}
-	if config.PulsarClientOptions != nil {
-		clientOptions = *config.PulsarClientOptions
-	}
-	if clientOptions.URL == "" {
-		clientOptions.URL = config.PulsarURL
-	}
-	if clientOptions.URL == "" {
+	if config.PulsarClientOptions.URL == "" {
 		return nil, fmt.Errorf("%w: pulsar url is required", contract.ErrInvalidRequest)
 	}
 
-	client, err := pulsar.NewClient(clientOptions)
+	client, err := pulsar.NewClient(config.PulsarClientOptions)
 	if err != nil {
 		return nil, err
 	}

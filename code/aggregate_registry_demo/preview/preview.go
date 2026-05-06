@@ -49,10 +49,6 @@ func FromFiles(requestPath, resultPath, policyPath, templateRoot string, showCon
 	return out, nil
 }
 
-func Marshal(result *Result) ([]byte, error) {
-	return json.MarshalIndent(result, "", "  ")
-}
-
 func loadRequest(path string) (*contract.BizAggregateRequest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

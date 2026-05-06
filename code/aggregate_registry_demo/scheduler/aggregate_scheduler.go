@@ -113,7 +113,7 @@ func (s *AggregateScheduler) tickOne(
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return err
 	}
-	if !cfg.Enabled || cfg.AggregatePeriodMinutes <= 0 {
+	if !cfg.AggregateEnabled || cfg.AggregatePeriodMinutes <= 0 {
 		return nil
 	}
 

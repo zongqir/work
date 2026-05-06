@@ -36,10 +36,10 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 	if err != nil {
 		return err
 	}
-	if cfg == nil || !cfg.Enabled {
+	if cfg == nil || !cfg.AggregateEnabled {
 		return nil
 	}
-	filter, err := parseHandlerPayload(handler, "filter", handler.NewFilter(), cfg.Filter)
+	filter, err := parseHandlerPayload(handler, handler.NewFilter(), cfg.Filter)
 	if err != nil {
 		return err
 	}
@@ -85,10 +85,10 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 	if err != nil {
 		return err
 	}
-	if cfg == nil || !cfg.Enabled {
+	if cfg == nil || !cfg.RealtimeEnabled {
 		return nil
 	}
-	filter, err := parseHandlerPayload(handler, "filter", handler.NewFilter(), cfg.Filter)
+	filter, err := parseHandlerPayload(handler, handler.NewFilter(), cfg.Filter)
 	if err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func (d *Dispatcher) ensureCache() {
 	})
 }
 
-func parseHandlerPayload(handler contract.Handler, name string, target any, raw json.RawMessage) (any, error) {
+func parseHandlerPayload(handler contract.Handler, target any, raw json.RawMessage) (any, error) {
 	if target == nil {
 		return nil, nil
 	}
@@ -189,7 +189,7 @@ func parseHandlerPayload(handler contract.Handler, name string, target any, raw 
 		return target, nil
 	}
 	if err := json.Unmarshal(raw, target); err != nil {
-		return nil, fmt.Errorf("%w: parse %s for %s: %v", contract.ErrInvalidRequest, name, handler.MessageType(), err)
+		return nil, fmt.Errorf("%w: parse filter for %s: %v", contract.ErrInvalidRequest, handler.MessageType(), err)
 	}
 	return target, nil
 }

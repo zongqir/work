@@ -8,7 +8,7 @@ import (
 )
 
 func TestHandlerAggregate(t *testing.T) {
-	h := New()
+	h := &Handler{}
 
 	result, err := h.Aggregate(context.Background(), &contract.BizAggregateRequest{})
 	if err != nil {
@@ -20,7 +20,7 @@ func TestHandlerAggregate(t *testing.T) {
 }
 
 func TestHandlerEvaluate(t *testing.T) {
-	h := New()
+	h := &Handler{}
 
 	decision, err := h.Evaluate(context.Background(), &contract.RealtimeRequest{
 		Event: &RealtimeEvent{EventID: "evt-1"},

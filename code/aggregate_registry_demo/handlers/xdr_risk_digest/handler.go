@@ -17,14 +17,8 @@ type RealtimeEvent struct {
 	EventID string `json:"event_id"`
 }
 
-var _ contract.Handler = (*Handler)(nil)
-
 func init() {
-	contract.MustRegister(New())
-}
-
-func New() *Handler {
-	return &Handler{}
+	contract.MustRegister(&Handler{})
 }
 
 func (h *Handler) MessageType() string {
@@ -38,6 +32,7 @@ func (h *Handler) NewFilter() any {
 func (h *Handler) Aggregate(_ context.Context, req *contract.BizAggregateRequest) (*contract.BizAggregateResult, error) {
 	filter, _ := req.Filter.(*Filter)
 	_ = filter
+
 	return &contract.BizAggregateResult{
 		BizVars: contract.TemplateVars{
 			// business fills vars here

@@ -98,7 +98,7 @@ func TestSendAggregate(t *testing.T) {
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
 				"t_1": {
-					"send_test_aggregate": json.RawMessage(`{"enabled":true,"filter":{"k":"v"}}`),
+					"send_test_aggregate": json.RawMessage(`{"aggregate_enabled":true,"filter":{"k":"v"}}`),
 				},
 			}, nil
 		},
@@ -150,7 +150,7 @@ func TestSendRealtime(t *testing.T) {
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
 				"t_2": {
-					"send_test_realtime": json.RawMessage(`{"enabled":true,"filter":{"x":"y"}}`),
+					"send_test_realtime": json.RawMessage(`{"realtime_enabled":true,"filter":{"x":"y"}}`),
 				},
 			}, nil
 		},
@@ -201,7 +201,7 @@ func TestSendRealtimeRequiresIdempotencyKey(t *testing.T) {
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
 				"t_2": {
-					"send_test_realtime": json.RawMessage(`{"enabled":true,"filter":{"x":"y"}}`),
+					"send_test_realtime": json.RawMessage(`{"realtime_enabled":true,"filter":{"x":"y"}}`),
 				},
 			}, nil
 		},
@@ -226,7 +226,7 @@ func TestSendAggregateRejectsInvalidFilter(t *testing.T) {
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
 				"t_1": {
-					"send_test_aggregate": json.RawMessage(`{"enabled":true,"filter":{"k":1}}`),
+					"send_test_aggregate": json.RawMessage(`{"aggregate_enabled":true,"filter":{"k":1}}`),
 				},
 			}, nil
 		},
@@ -257,7 +257,7 @@ func TestSendRealtimeRejectsInvalidEvent(t *testing.T) {
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
 				"t_2": {
-					"send_test_realtime": json.RawMessage(`{"enabled":true,"filter":{"x":"y"}}`),
+					"send_test_realtime": json.RawMessage(`{"realtime_enabled":true,"filter":{"x":"y"}}`),
 				},
 			}, nil
 		},
