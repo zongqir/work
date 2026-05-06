@@ -2,8 +2,6 @@ package runtime
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -31,9 +29,7 @@ type Dispatcher struct {
 type messageConfig struct {
 	Enabled                bool            `json:"enabled"`
 	Filter                 json.RawMessage `json:"filter"`
-	AggregateFilter        json.RawMessage `json:"aggregate_filter"`
 	AggregatePeriodMinutes int             `json:"aggregate_period_minutes"`
-	RealtimeFilter         json.RawMessage `json:"realtime_filter"`
 }
 
 type Options struct {
@@ -72,7 +68,7 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 	if config == nil || !config.Enabled {
 		return nil
 	}
-	filter, err := parseHandlerPayload(handler, "filter", handler.NewFilter(), config.filterForAggregate())
+	filter, err := parseHandlerPayload(handler, "filter", handler.NewFilter(), config.Filter)
 	if err != nil {
 		return err
 	}
@@ -99,13 +95,8 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 	if expireAfter <= 0 {
 		expireAfter = 30 * time.Minute
 	}
-	messageID, err := newMessageID()
-	if err != nil {
-		return err
-	}
 
 	return d.Publisher.Publish(ctx, &contract.DispatchMessage{
-		MessageID:      messageID,
 		IdempotencyKey: buildAggregateIdempotencyKey(tenantID, handler.MessageType(), windowStart, windowEnd),
 		TenantID:       tenantID,
 		MessageType:    handler.MessageType(),
@@ -126,7 +117,7 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 	if config == nil || !config.Enabled {
 		return nil
 	}
-	filter, err := parseHandlerPayload(handler, "filter", handler.NewFilter(), config.filterForRealtime())
+	filter, err := parseHandlerPayload(handler, "filter", handler.NewFilter(), config.Filter)
 	if err != nil {
 		return err
 	}
@@ -159,13 +150,8 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 	if expireAfter <= 0 {
 		expireAfter = 5 * time.Minute
 	}
-	messageID, err := newMessageID()
-	if err != nil {
-		return err
-	}
 
 	return d.Publisher.Publish(ctx, &contract.DispatchMessage{
-		MessageID:      messageID,
 		IdempotencyKey: buildRealtimeIdempotencyKey(tenantID, handler.MessageType(), decision.IdempotencyKey),
 		TenantID:       tenantID,
 		MessageType:    handler.MessageType(),
@@ -214,14 +200,6 @@ func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) 
 	return handler, &config, nil
 }
 
-func newMessageID() (string, error) {
-	var raw [16]byte
-	if _, err := rand.Read(raw[:]); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(raw[:]), nil
-}
-
 func parseHandlerPayload(handler contract.Handler, name string, target any, raw json.RawMessage) (any, error) {
 	if target == nil {
 		return nil, nil
@@ -233,20 +211,6 @@ func parseHandlerPayload(handler contract.Handler, name string, target any, raw 
 		return nil, fmt.Errorf("%w: parse %s for %s: %v", contract.ErrInvalidRequest, name, handler.MessageType(), err)
 	}
 	return target, nil
-}
-
-func (c messageConfig) filterForAggregate() json.RawMessage {
-	if len(c.Filter) != 0 {
-		return c.Filter
-	}
-	return c.AggregateFilter
-}
-
-func (c messageConfig) filterForRealtime() json.RawMessage {
-	if len(c.Filter) != 0 {
-		return c.Filter
-	}
-	return c.RealtimeFilter
 }
 
 func marshalEventBody(event any) json.RawMessage {

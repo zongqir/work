@@ -124,9 +124,6 @@ func TestSendAggregate(t *testing.T) {
 	if publisher.msg.RetryCount != 0 {
 		t.Fatalf("expected retry_count=0, got %d", publisher.msg.RetryCount)
 	}
-	if publisher.msg.MessageID == "" {
-		t.Fatal("expected message_id")
-	}
 	if publisher.msg.IdempotencyKey != "aggregate:t_1:send_test_aggregate:"+windowStart.Format(time.RFC3339Nano)+":"+windowEnd.Format(time.RFC3339Nano) {
 		t.Fatalf("unexpected idempotency_key: %s", publisher.msg.IdempotencyKey)
 	}
@@ -181,9 +178,6 @@ func TestSendRealtime(t *testing.T) {
 	}
 	if publisher.msg.RetryCount != 0 {
 		t.Fatalf("expected retry_count=0, got %d", publisher.msg.RetryCount)
-	}
-	if publisher.msg.MessageID == "" {
-		t.Fatal("expected message_id")
 	}
 	if publisher.msg.IdempotencyKey != "realtime:t_2:send_test_realtime:biz-1" {
 		t.Fatalf("unexpected idempotency_key: %s", publisher.msg.IdempotencyKey)

@@ -306,8 +306,7 @@ Recorder
 1. 分发配置
 
 - `enabled`
-- `realtime_filter`
-- `aggregate_filter`
+- `filter`
 - `aggregate_period_minutes`
 
 2. 渲染和发送策略

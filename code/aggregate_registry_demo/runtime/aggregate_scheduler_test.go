@@ -53,7 +53,7 @@ func TestAggregateSchedulerTickFirstWindow(t *testing.T) {
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
 				"t_1": {
-					"xdr_risk_digest": json.RawMessage(`{"enabled":true,"aggregate_period_minutes":5,"aggregate_filter":{"k":"v"}}`),
+					"xdr_risk_digest": json.RawMessage(`{"enabled":true,"aggregate_period_minutes":5,"filter":{"k":"v"}}`),
 				},
 			}, nil
 		},
