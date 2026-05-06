@@ -78,15 +78,14 @@
 
 - `Handler`：业务方必须实现的最小接口
 - `MessageType()`：业务方自己定义消息标识
-- `MustRegister()`：业务方自己显式注册
+- `contract.MustRegister(...)`：业务方注册自己的实现
 - `Aggregate(...)`：业务方自己完成聚合并返回结果
 - `Evaluate(...)`：业务方自己完成实时筛选并返回结果
-- `RealtimeIdempotencyKey(...)`：业务方自己返回实时幂等 key
 - `BizAggregateRequest`：聚合请求
 - `RealtimeRequest`：实时请求
 - `RealtimeResult`：实时判断结果
 - `DispatchMessage`：最终要分发的消息载体
-  自带 `message_id / idempotency_key / source / retry_count / created_at / expected_send_at / expire_at`
+  自带 `message_id / idempotency_key / source / retry_count / created_at / expected_send_at / expire_at` 等字段
 - `ErrInvalidRequest`：请求非法
 - `ErrUnsupportedConfig`：配置不支持
 - `ErrTemporaryFailure`：临时失败，可由调用方决定是否重试
@@ -115,7 +114,7 @@ if err != nil {
 }
 defer svc.Close()
 
-err = svc.SendRealtime(ctx, tenantID, messageType, eventBody)
+err = svc.SendRealtime(ctx, tenantID, messageType, event)
 ```
 
 如果确实要自己控制底层依赖，就直接构建 `Dispatcher`：
@@ -136,7 +135,7 @@ dispatcher := &dispatch.Dispatcher{
 - 默认发布口径可以是 MQ，不绑定数据库
 - `publisher.PulsarPublisher` 负责复用长生命周期 producer，不重复构建
 - 聚合消息默认 `30m` 过期，实时消息默认 `5m` 过期
-- 实时幂等 key 由业务 `RealtimeIdempotencyKey(...)` 返回
+- 实时幂等 key 由业务在 `Evaluate(...)` 返回的 `RealtimeResult.IdempotencyKey` 中给出
 - 聚合幂等 key 由平台按 `tenant_id + message_type + window_start + window_end` 生成
 
 实时场景口径：
@@ -181,7 +180,7 @@ dispatcher := &dispatch.Dispatcher{
 - 每个 `message_type` 一个子目录
 - 每个子目录只有一个 `handler.go`
 - 一个 `Handler` 同时实现：
-  `MessageType()`、`MustRegister()`、`Aggregate(...)`、`Evaluate(...)`
+  `MessageType()`、`NewFilter()`、`Aggregate(...)`、`Evaluate(...)`
 - `contract` 包统一按 `message_type` 注册和查找
 
 共享契约统一放在 `contract/` 目录里，不放进 `handlers/`。原因很简单：

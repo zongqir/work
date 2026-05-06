@@ -44,7 +44,7 @@ type Handler interface {
 
 - `NewFilter()` 返回空壳供平台反序列化配置中的 filter JSON
 - `Aggregate` 和 `Evaluate` 的 `Filter` 字段由平台解析好后传入（类型已是 handler 自己的 Filter 类型）
-- `RealtimeRequest.Event` 是 `any`，Go 调用方直接传 struct，MQ 调用方传 `json.RawMessage`，handler 自行 type-assert
+- `RealtimeRequest.Event` 是 `any`，调用方先解析成自己的事件结构，再传给 handler
 
 ### 幂等 Key 设计
 

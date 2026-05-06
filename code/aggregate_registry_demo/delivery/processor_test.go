@@ -71,6 +71,33 @@ func TestProcessSuccess(t *testing.T) {
 	}
 }
 
+func TestProcessSuccessWithoutMessageID(t *testing.T) {
+	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
+	sender := &stubSender{}
+	recorder := &stubRecorder{}
+	p := &Processor{
+		Sender:   sender,
+		Recorder: recorder,
+		Now: func() time.Time {
+			return now
+		},
+	}
+
+	msg := newMessage(now)
+	msg.MessageID = ""
+
+	err := p.Process(context.Background(), msg)
+	if err != nil {
+		t.Fatalf("Process failed: %v", err)
+	}
+	if sender.sent == nil {
+		t.Fatal("expected sender to be called")
+	}
+	if recorder.record == nil {
+		t.Fatal("expected record to be saved")
+	}
+}
+
 func TestProcessRetryOnSendFailure(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	retryPublisher := &stubRetryPublisher{}

@@ -196,9 +196,6 @@ func parseHandlerPayload(handler contract.Handler, name string, target any, raw 
 }
 
 func marshalEventBody(event any) json.RawMessage {
-	if raw, ok := event.(json.RawMessage); ok {
-		return raw
-	}
 	data, _ := json.Marshal(event)
 	return data
 }

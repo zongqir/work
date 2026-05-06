@@ -84,9 +84,6 @@ func validateMessage(msg *contract.DispatchMessage) error {
 	if msg == nil {
 		return fmt.Errorf("%w: dispatch message is nil", contract.ErrInvalidRequest)
 	}
-	if msg.MessageID == "" {
-		return fmt.Errorf("%w: message_id is required", contract.ErrInvalidRequest)
-	}
 	if msg.IdempotencyKey == "" {
 		return fmt.Errorf("%w: idempotency_key is required", contract.ErrInvalidRequest)
 	}
