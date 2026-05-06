@@ -131,7 +131,7 @@ dispatcher := bootstrap.NewWithRuntime(runtime.Options{...})
 - 两个方法内部走同一套分发流程
 - 平台根据 `message_type` 找到对应业务实现
 - 默认发布口径可以是 MQ，不绑定数据库
-- `PulsarPublisher` 负责复用长生命周期 producer，不重复构建
+- `publisher.PulsarPublisher` 负责复用长生命周期 producer，不重复构建
 - 聚合消息默认 `30m` 过期，实时消息默认 `5m` 过期
 - 实时幂等 key 由业务 `RealtimeIdempotencyKey(...)` 返回
 - 聚合幂等 key 由平台按 `tenant_id + message_type + window_start + window_end` 生成
@@ -204,12 +204,24 @@ dispatcher := bootstrap.NewWithRuntime(runtime.Options{...})
 - 后续系统变量增加时，只需要往 `.sys` 里补
 - 模板编译结果会走内存缓存，不重复 `ReadFile + Parse`
 
+当前包职责：
+
+- `contract/`：共享契约
+- `config/`：分发配置模型和配置缓存
+- `render/`：生效策略和模板渲染
+- `publisher/`：消息发布实现
+- `runtime/`：分发和聚合调度编排
+
 当前目录结构：
 
 ```text
 code/aggregate_registry_demo/
   bootstrap/
     bootstrap.go
+  config/
+    cache.go
+    cache_test.go
+    config.go
   contract/
     contract.go
     types.go
@@ -221,17 +233,21 @@ code/aggregate_registry_demo/
   sample_request.json
   sample_result.json
   sample_policy.json
+  publisher/
+    pulsar.go
   preview/
     preview.go
     preview_test.go
+  render/
+    policy.go
+    renderer.go
+    renderer_test.go
+    template_cache.go
   runtime/
-    cache.go
+    aggregate_scheduler.go
+    aggregate_scheduler_test.go
     dispatcher.go
     dispatcher_test.go
-    pulsar_publisher.go
-    render.go
-    render_test.go
-    template_cache.go
   templates/
     email/
       xdr_risk_digest_default.subject.tmpl

@@ -1,4 +1,4 @@
-package runtime
+package config
 
 import (
 	"context"
@@ -10,12 +10,12 @@ import (
 	"notes/code/aggregate_registry_demo/contract"
 )
 
-type configCache struct {
+type Cache struct {
 	TTL            time.Duration
 	MaxStale       time.Duration
 	RefreshTimeout time.Duration
 
-	now func() time.Time
+	Now func() time.Time
 	mu  sync.RWMutex
 
 	items      map[string]map[string]json.RawMessage
@@ -23,7 +23,7 @@ type configCache struct {
 	refreshing bool
 }
 
-func (c *configCache) pick(
+func (c *Cache) Pick(
 	ctx context.Context,
 	tenantID, messageType string,
 	loadAll func(context.Context) (map[string]map[string]json.RawMessage, error),
@@ -39,7 +39,7 @@ func (c *configCache) pick(
 		return nil, fmt.Errorf("%w: load_all is required", contract.ErrInvalidRequest)
 	}
 
-	nowFn := c.now
+	nowFn := c.Now
 	if nowFn == nil {
 		nowFn = time.Now
 	}
@@ -104,9 +104,9 @@ func (c *configCache) pick(
 	if len(tenantConfigs) == 0 {
 		return nil, nil
 	}
-	config := tenantConfigs[messageType]
-	if len(config) == 0 {
+	cfg := tenantConfigs[messageType]
+	if len(cfg) == 0 {
 		return nil, nil
 	}
-	return config, nil
+	return cfg, nil
 }

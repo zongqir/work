@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"notes/code/aggregate_registry_demo/config"
 	"notes/code/aggregate_registry_demo/contract"
 )
 
@@ -128,15 +129,15 @@ func (s *AggregateScheduler) tickOne(
 		return nil
 	}
 
-	var config messageConfig
-	if err := json.Unmarshal(raw, &config); err != nil {
+	var cfg config.MessageConfig
+	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return err
 	}
-	if !config.Enabled || config.AggregatePeriodMinutes <= 0 {
+	if !cfg.Enabled || cfg.AggregatePeriodMinutes <= 0 {
 		return nil
 	}
 
-	period := time.Duration(config.AggregatePeriodMinutes) * time.Minute
+	period := time.Duration(cfg.AggregatePeriodMinutes) * time.Minute
 	windowEnd := truncateToPeriod(current.UTC(), period)
 	if windowEnd.IsZero() {
 		return nil

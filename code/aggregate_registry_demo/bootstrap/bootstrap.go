@@ -8,6 +8,7 @@ import (
 
 	"github.com/apache/pulsar-client-go/pulsar"
 	"notes/code/aggregate_registry_demo/contract"
+	"notes/code/aggregate_registry_demo/publisher"
 	"notes/code/aggregate_registry_demo/runtime"
 )
 
@@ -25,7 +26,7 @@ type Config struct {
 
 type Service struct {
 	dispatcher *runtime.Dispatcher
-	publisher  *runtime.PulsarPublisher
+	publisher  *publisher.PulsarPublisher
 	client     pulsar.Client
 }
 
@@ -46,7 +47,7 @@ func New(config Config) (*Service, error) {
 		return nil, err
 	}
 
-	publisher, err := runtime.NewPulsarPublisher(client, config.Topic)
+	publisher, err := publisher.NewPulsarPublisher(client, config.Topic)
 	if err != nil {
 		client.Close()
 		return nil, err

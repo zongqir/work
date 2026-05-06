@@ -1,10 +1,8 @@
-package runtime
+package render
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -12,19 +10,6 @@ import (
 	"notes/code/aggregate_registry_demo/contract"
 )
 
-// EffectivePolicy 是通知执行层根据 tenant_id + message_type 查到的生效策略。
-type EffectivePolicy struct {
-	TenantID    string          `json:"tenant_id"`
-	MessageType string          `json:"message_type"`
-	Channels    []ChannelPolicy `json:"channels"`
-}
-
-type ChannelPolicy struct {
-	Channel      string `json:"channel"`
-	TemplateCode string `json:"template_code"`
-}
-
-// MessageRenderInput 是模板最终拿到的输入。
 type MessageRenderInput struct {
 	Vars map[string]contract.TemplateVars
 }
@@ -48,45 +33,6 @@ type RenderedWebhook struct {
 type RenderedSMS struct {
 	TemplateCode string            `json:"template_code"`
 	Params       map[string]string `json:"params"`
-}
-
-func loadBizAggregateRequest(path string) (*contract.BizAggregateRequest, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	var req contract.BizAggregateRequest
-	if err := json.Unmarshal(data, &req); err != nil {
-		return nil, err
-	}
-	return &req, nil
-}
-
-func loadBizAggregateResult(path string) (*contract.BizAggregateResult, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	var result contract.BizAggregateResult
-	if err := json.Unmarshal(data, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-func loadEffectivePolicy(path string) (*EffectivePolicy, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	var policy EffectivePolicy
-	if err := json.Unmarshal(data, &policy); err != nil {
-		return nil, err
-	}
-	return &policy, nil
 }
 
 func BuildMessageRenderInput(req *contract.BizAggregateRequest, result *contract.BizAggregateResult) (MessageRenderInput, error) {
@@ -223,75 +169,46 @@ func templatePath(templateRoot, channelDir, templateName string) (string, error)
 
 func buildSMSParams(input MessageRenderInput) map[string]string {
 	params := make(map[string]string)
-	for key, value := range input.Vars["biz"] {
-		switch v := value.(type) {
-		case string:
-			params[key] = v
-		case fmt.Stringer:
-			params[key] = v.String()
-		case int:
-			params[key] = fmt.Sprintf("%d", v)
-		case int8:
-			params[key] = fmt.Sprintf("%d", v)
-		case int16:
-			params[key] = fmt.Sprintf("%d", v)
-		case int32:
-			params[key] = fmt.Sprintf("%d", v)
-		case int64:
-			params[key] = fmt.Sprintf("%d", v)
-		case uint:
-			params[key] = fmt.Sprintf("%d", v)
-		case uint8:
-			params[key] = fmt.Sprintf("%d", v)
-		case uint16:
-			params[key] = fmt.Sprintf("%d", v)
-		case uint32:
-			params[key] = fmt.Sprintf("%d", v)
-		case uint64:
-			params[key] = fmt.Sprintf("%d", v)
-		case float32:
-			params[key] = fmt.Sprintf("%g", v)
-		case float64:
-			params[key] = fmt.Sprintf("%g", v)
-		case bool:
-			params[key] = fmt.Sprintf("%t", v)
-		}
-	}
-	for key, value := range input.Vars["sys"] {
-		switch v := value.(type) {
-		case string:
-			params[key] = v
-		case fmt.Stringer:
-			params[key] = v.String()
-		case int:
-			params[key] = fmt.Sprintf("%d", v)
-		case int8:
-			params[key] = fmt.Sprintf("%d", v)
-		case int16:
-			params[key] = fmt.Sprintf("%d", v)
-		case int32:
-			params[key] = fmt.Sprintf("%d", v)
-		case int64:
-			params[key] = fmt.Sprintf("%d", v)
-		case uint:
-			params[key] = fmt.Sprintf("%d", v)
-		case uint8:
-			params[key] = fmt.Sprintf("%d", v)
-		case uint16:
-			params[key] = fmt.Sprintf("%d", v)
-		case uint32:
-			params[key] = fmt.Sprintf("%d", v)
-		case uint64:
-			params[key] = fmt.Sprintf("%d", v)
-		case float32:
-			params[key] = fmt.Sprintf("%g", v)
-		case float64:
-			params[key] = fmt.Sprintf("%g", v)
-		case bool:
-			params[key] = fmt.Sprintf("%t", v)
-		}
-	}
+	appendParams(params, input.Vars["biz"])
+	appendParams(params, input.Vars["sys"])
 	return params
+}
+
+func appendParams(params map[string]string, vars contract.TemplateVars) {
+	for key, value := range vars {
+		switch v := value.(type) {
+		case string:
+			params[key] = v
+		case fmt.Stringer:
+			params[key] = v.String()
+		case int:
+			params[key] = fmt.Sprintf("%d", v)
+		case int8:
+			params[key] = fmt.Sprintf("%d", v)
+		case int16:
+			params[key] = fmt.Sprintf("%d", v)
+		case int32:
+			params[key] = fmt.Sprintf("%d", v)
+		case int64:
+			params[key] = fmt.Sprintf("%d", v)
+		case uint:
+			params[key] = fmt.Sprintf("%d", v)
+		case uint8:
+			params[key] = fmt.Sprintf("%d", v)
+		case uint16:
+			params[key] = fmt.Sprintf("%d", v)
+		case uint32:
+			params[key] = fmt.Sprintf("%d", v)
+		case uint64:
+			params[key] = fmt.Sprintf("%d", v)
+		case float32:
+			params[key] = fmt.Sprintf("%g", v)
+		case float64:
+			params[key] = fmt.Sprintf("%g", v)
+		case bool:
+			params[key] = fmt.Sprintf("%t", v)
+		}
+	}
 }
 
 func renderTextTemplate(templatePath string, input any) (string, error) {

@@ -5,12 +5,12 @@ import (
 	"os"
 
 	"notes/code/aggregate_registry_demo/contract"
-	"notes/code/aggregate_registry_demo/runtime"
+	"notes/code/aggregate_registry_demo/render"
 )
 
 type Result struct {
-	TemplateContext map[string]any                   `json:"template_context,omitempty"`
-	Rendered        []runtime.RenderedChannelMessage `json:"rendered"`
+	TemplateContext map[string]any                  `json:"template_context,omitempty"`
+	Rendered        []render.RenderedChannelMessage `json:"rendered"`
 }
 
 func FromFiles(requestPath, resultPath, policyPath, templateRoot string, showContext bool) (*Result, error) {
@@ -29,12 +29,12 @@ func FromFiles(requestPath, resultPath, policyPath, templateRoot string, showCon
 		return nil, err
 	}
 
-	input, err := runtime.BuildMessageRenderInput(req, result)
+	input, err := render.BuildMessageRenderInput(req, result)
 	if err != nil {
 		return nil, err
 	}
 
-	rendered, err := runtime.RenderByPolicy(req, result, policy, templateRoot)
+	rendered, err := render.RenderByPolicy(req, result, policy, templateRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -83,13 +83,13 @@ func loadResult(path string) (*contract.BizAggregateResult, error) {
 	return &result, nil
 }
 
-func loadPolicy(path string) (*runtime.EffectivePolicy, error) {
+func loadPolicy(path string) (*render.EffectivePolicy, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var policy runtime.EffectivePolicy
+	var policy render.EffectivePolicy
 	if err := json.Unmarshal(data, &policy); err != nil {
 		return nil, err
 	}

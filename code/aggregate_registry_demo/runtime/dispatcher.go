@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"notes/code/aggregate_registry_demo/config"
 	"notes/code/aggregate_registry_demo/contract"
 )
 
@@ -23,13 +24,7 @@ type Dispatcher struct {
 	AggregateExpireAfter time.Duration
 	Now                  func() time.Time
 
-	cache configCache
-}
-
-type messageConfig struct {
-	Enabled                bool            `json:"enabled"`
-	Filter                 json.RawMessage `json:"filter"`
-	AggregatePeriodMinutes int             `json:"aggregate_period_minutes"`
+	cache config.Cache
 }
 
 type Options struct {
@@ -55,7 +50,7 @@ func NewDispatcher(options Options) *Dispatcher {
 	d.cache.TTL = options.CacheTTL
 	d.cache.MaxStale = options.CacheMaxStale
 	if options.Now != nil {
-		d.cache.now = options.Now
+		d.cache.Now = options.Now
 	}
 	return d
 }
@@ -165,7 +160,7 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 	})
 }
 
-func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) (contract.Handler, *messageConfig, error) {
+func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) (contract.Handler, *config.MessageConfig, error) {
 	if d == nil || d.Publisher == nil {
 		return nil, nil, fmt.Errorf("%w: message publisher is required", contract.ErrInvalidRequest)
 	}
@@ -185,7 +180,7 @@ func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) 
 		return nil, nil, err
 	}
 
-	configBody, err := d.cache.pick(ctx, tenantID, messageType, d.LoadAll, d.LogError)
+	configBody, err := d.cache.Pick(ctx, tenantID, messageType, d.LoadAll, d.LogError)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -193,7 +188,7 @@ func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) 
 		return handler, nil, nil
 	}
 
-	var config messageConfig
+	var config config.MessageConfig
 	if err := json.Unmarshal(configBody, &config); err != nil {
 		return nil, nil, err
 	}
