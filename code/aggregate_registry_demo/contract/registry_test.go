@@ -9,10 +9,7 @@ import (
 type stubHandler struct{}
 
 func resetRegistryForTest() {
-	registryMu.Lock()
-	defer registryMu.Unlock()
 	registeredHandlers = map[string]Handler{}
-	registryFrozen = false
 }
 
 func (stubHandler) MessageType() string { return "stub" }
@@ -53,20 +50,17 @@ func TestMustRegisterAndResolve(t *testing.T) {
 	}
 }
 
-func TestRegistryFrozenAfterResolve(t *testing.T) {
+func TestMustRegisterRejectsDuplicate(t *testing.T) {
 	resetRegistryForTest()
 
-	MustRegister(stubHandlerWithType("stub_before_freeze"))
-	if _, err := Resolve("stub_before_freeze"); err != nil {
-		t.Fatalf("Resolve failed: %v", err)
-	}
+	MustRegister(stubHandlerWithType("stub_dup"))
 
 	defer func() {
 		if recover() == nil {
-			t.Fatal("expected panic after registry is frozen")
+			t.Fatal("expected panic for duplicate handler")
 		}
 	}()
-	MustRegister(stubHandlerWithType("stub_after_freeze"))
+	MustRegister(stubHandlerWithType("stub_dup"))
 }
 
 type stubHandlerWithType string

@@ -41,17 +41,12 @@ func BuildTemplateContext(req *contract.BizAggregateRequest, result *contract.Bi
 	if len(result.BizVars) == 0 {
 		return nil, fmt.Errorf("%w: biz_vars is required", contract.ErrInvalidRequest)
 	}
-
-	bizVars := make(contract.TemplateVars, len(result.BizVars))
-	for key, value := range result.BizVars {
-		bizVars[key] = value
-	}
 	sysVars := contract.TemplateVars{
 		"window_label": formatWindowLabel(req.WindowStart, req.WindowEnd),
 	}
 
 	return map[string]contract.TemplateVars{
-		"biz": bizVars,
+		"biz": result.BizVars,
 		"sys": sysVars,
 	}, nil
 }
@@ -163,46 +158,13 @@ func templatePath(templateRoot, channelDir, templateName string) (string, error)
 
 func buildSMSParams(context map[string]contract.TemplateVars) map[string]string {
 	params := make(map[string]string)
-	appendParams(params, context["biz"])
-	appendParams(params, context["sys"])
-	return params
-}
-
-func appendParams(params map[string]string, vars contract.TemplateVars) {
-	for key, value := range vars {
-		switch v := value.(type) {
-		case string:
-			params[key] = v
-		case fmt.Stringer:
-			params[key] = v.String()
-		case int:
-			params[key] = fmt.Sprintf("%d", v)
-		case int8:
-			params[key] = fmt.Sprintf("%d", v)
-		case int16:
-			params[key] = fmt.Sprintf("%d", v)
-		case int32:
-			params[key] = fmt.Sprintf("%d", v)
-		case int64:
-			params[key] = fmt.Sprintf("%d", v)
-		case uint:
-			params[key] = fmt.Sprintf("%d", v)
-		case uint8:
-			params[key] = fmt.Sprintf("%d", v)
-		case uint16:
-			params[key] = fmt.Sprintf("%d", v)
-		case uint32:
-			params[key] = fmt.Sprintf("%d", v)
-		case uint64:
-			params[key] = fmt.Sprintf("%d", v)
-		case float32:
-			params[key] = fmt.Sprintf("%g", v)
-		case float64:
-			params[key] = fmt.Sprintf("%g", v)
-		case bool:
-			params[key] = fmt.Sprintf("%t", v)
-		}
+	for key, value := range context["biz"] {
+		params[key] = fmt.Sprint(value)
 	}
+	for key, value := range context["sys"] {
+		params[key] = fmt.Sprint(value)
+	}
+	return params
 }
 
 func renderTextTemplate(templatePath string, input any) (string, error) {
