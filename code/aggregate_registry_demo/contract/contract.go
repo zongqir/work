@@ -34,11 +34,12 @@ type BizAggregateRequest struct {
 type RealtimeRequest struct {
 	TenantID string `json:"tenant_id"`
 	Filter   any    `json:"filter,omitempty"`
-	Event    any    `json:"event,omitempty"`
+	Event    json.RawMessage `json:"event,omitempty"`
 }
 
 type RealtimeDecision struct {
 	Matched bool                  `json:"matched"`
+	IdempotencyKey string                `json:"idempotency_key,omitempty"`
 	BizVars messages.TemplateVars `json:"biz_vars,omitempty"`
 }
 
@@ -66,10 +67,8 @@ const (
 type Handler interface {
 	MessageType() string
 	NewFilter() any
-	NewRealtimeEvent() any
 	Aggregate(ctx context.Context, req *BizAggregateRequest) (*messages.BizAggregateResult, error)
 	Evaluate(ctx context.Context, req *RealtimeRequest) (*RealtimeDecision, error)
-	RealtimeIdempotencyKey(ctx context.Context, req *RealtimeRequest) (string, error)
 }
 
 func MustRegister(handler Handler) {

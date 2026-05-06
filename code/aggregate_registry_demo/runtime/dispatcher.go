@@ -130,15 +130,10 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 	if err != nil {
 		return err
 	}
-	event, err := parseHandlerPayload(handler, "realtime event", handler.NewRealtimeEvent(), eventBody)
-	if err != nil {
-		return err
-	}
-
 	realtimeReq := &contract.RealtimeRequest{
 		TenantID: tenantID,
 		Filter:   filter,
-		Event:    event,
+		Event:    eventBody,
 	}
 
 	decision, err := handler.Evaluate(ctx, realtimeReq)
@@ -151,13 +146,8 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 	if !decision.Matched {
 		return nil
 	}
-
-	bizKey, err := handler.RealtimeIdempotencyKey(ctx, realtimeReq)
-	if err != nil {
-		return err
-	}
-	if bizKey == "" {
-		return fmt.Errorf("%w: biz_idempotency_key is required", contract.ErrInvalidRequest)
+	if decision.IdempotencyKey == "" {
+		return fmt.Errorf("%w: idempotency_key is required", contract.ErrInvalidRequest)
 	}
 
 	now := time.Now
@@ -176,7 +166,7 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 
 	return d.Publisher.Publish(ctx, &contract.DispatchMessage{
 		MessageID:      messageID,
-		IdempotencyKey: buildRealtimeIdempotencyKey(tenantID, handler.MessageType(), bizKey),
+		IdempotencyKey: buildRealtimeIdempotencyKey(tenantID, handler.MessageType(), decision.IdempotencyKey),
 		TenantID:       tenantID,
 		MessageType:    handler.MessageType(),
 		Source:         contract.DispatchSourceRealtime,

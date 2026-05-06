@@ -2,6 +2,7 @@ package xdrriskdigest
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"notes/code/aggregate_registry_demo/contract"
@@ -22,7 +23,9 @@ func TestHandlerAggregate(t *testing.T) {
 func TestHandlerEvaluate(t *testing.T) {
 	h := New()
 
-	decision, err := h.Evaluate(context.Background(), &contract.RealtimeRequest{})
+	decision, err := h.Evaluate(context.Background(), &contract.RealtimeRequest{
+		Event: json.RawMessage(`{"event_id":"evt-1"}`),
+	})
 	if err != nil {
 		t.Fatalf("Evaluate failed: %v", err)
 	}
@@ -32,16 +35,19 @@ func TestHandlerEvaluate(t *testing.T) {
 	if decision.BizVars == nil {
 		t.Fatal("expected biz_vars map")
 	}
+	if decision.IdempotencyKey != "xdr_risk_digest:evt-1" {
+		t.Fatalf("expected idempotency key xdr_risk_digest:evt-1, got %s", decision.IdempotencyKey)
+	}
 }
 
-func TestHandlerRealtimeIdempotencyKey(t *testing.T) {
+func TestHandlerEvaluateEmptyEvent(t *testing.T) {
 	h := New()
 
-	key, err := h.RealtimeIdempotencyKey(context.Background(), &contract.RealtimeRequest{})
+	decision, err := h.Evaluate(context.Background(), &contract.RealtimeRequest{})
 	if err != nil {
-		t.Fatalf("RealtimeIdempotencyKey failed: %v", err)
+		t.Fatalf("Evaluate failed: %v", err)
 	}
-	if key == "" {
-		t.Fatal("expected idempotency key")
+	if decision.IdempotencyKey != "xdr_risk_digest:" {
+		t.Fatalf("expected idempotency key with empty event_id, got %s", decision.IdempotencyKey)
 	}
 }

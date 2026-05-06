@@ -18,19 +18,12 @@ func resetRegistryForTest() {
 }
 
 func (stubHandler) MessageType() string { return "stub" }
-func (stubHandler) MustRegister()       {}
 func (stubHandler) NewFilter() any      { return nil }
-func (stubHandler) NewRealtimeEvent() any {
-	return nil
-}
 func (stubHandler) Aggregate(_ context.Context, _ *BizAggregateRequest) (*messages.BizAggregateResult, error) {
 	return &messages.BizAggregateResult{BizVars: messages.TemplateVars{}}, nil
 }
 func (stubHandler) Evaluate(_ context.Context, _ *RealtimeRequest) (*RealtimeDecision, error) {
-	return &RealtimeDecision{Matched: false}, nil
-}
-func (stubHandler) RealtimeIdempotencyKey(_ context.Context, _ *RealtimeRequest) (string, error) {
-	return "", nil
+	return &RealtimeDecision{Matched: false, IdempotencyKey: ""}, nil
 }
 
 func TestResolveNotFound(t *testing.T) {
@@ -81,17 +74,10 @@ func TestRegistryFrozenAfterResolve(t *testing.T) {
 type stubHandlerWithType string
 
 func (s stubHandlerWithType) MessageType() string { return string(s) }
-func (s stubHandlerWithType) MustRegister()       {}
 func (s stubHandlerWithType) NewFilter() any      { return nil }
-func (s stubHandlerWithType) NewRealtimeEvent() any {
-	return nil
-}
 func (s stubHandlerWithType) Aggregate(_ context.Context, _ *BizAggregateRequest) (*messages.BizAggregateResult, error) {
 	return &messages.BizAggregateResult{BizVars: messages.TemplateVars{}}, nil
 }
-func (s stubHandlerWithType) Evaluate(_ context.Context, _ *RealtimeRequest) (*RealtimeDecision, error) {
-	return &RealtimeDecision{Matched: true}, nil
-}
-func (s stubHandlerWithType) RealtimeIdempotencyKey(_ context.Context, _ *RealtimeRequest) (string, error) {
-	return "biz", nil
+func (s stubHandlerWithType) Evaluate(_ context.Context, req *RealtimeRequest) (*RealtimeDecision, error) {
+	return &RealtimeDecision{Matched: true, IdempotencyKey: "biz"}, nil
 }
