@@ -65,7 +65,6 @@ const (
 // 一个 handler 同时声明聚合和实时两种能力，少实现任何一个方法都无法通过编译。
 type Handler interface {
 	MessageType() string
-	MustRegister()
 	NewFilter() any
 	NewRealtimeEvent() any
 	Aggregate(ctx context.Context, req *BizAggregateRequest) (*messages.BizAggregateResult, error)

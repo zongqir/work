@@ -21,15 +21,11 @@ type RealtimeEvent struct {
 var _ contract.Handler = (*Handler)(nil)
 
 func init() {
-	New().MustRegister()
+	contract.MustRegister(New())
 }
 
 func New() *Handler {
 	return &Handler{}
-}
-
-func (h *Handler) MustRegister() {
-	contract.MustRegister(h)
 }
 
 func (h *Handler) MessageType() string {
