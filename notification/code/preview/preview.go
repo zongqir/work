@@ -32,9 +32,8 @@ func FromFiles(requestPath, resultPath, policyPath, templateRoot string, showCon
 	input := render.RenderInput{
 		TenantID:    req.TenantID,
 		MessageType: policy.MessageType,
-		WindowStart: req.WindowStart,
-		WindowEnd:   req.WindowEnd,
 		BizVars:     result.BizVars,
+		SystemVars:  render.WindowSystemVars(req.WindowStart, req.WindowEnd),
 	}
 
 	templateContext, err := render.BuildTemplateContext(input)

@@ -20,6 +20,7 @@ type ConsumerConfig struct {
 	Topic               string
 	Subscription        string
 	LoadAll             func(ctx context.Context) (map[string]map[string]json.RawMessage, error)
+	LoadSystemVars      func(ctx context.Context, msg *contract.DispatchMessage) (contract.TemplateVars, error)
 	LogError            func(ctx context.Context, msg string, err error)
 
 	TemplateRoot        string
@@ -77,11 +78,12 @@ func NewConsumer(config ConsumerConfig) (*ConsumerService, error) {
 		LoadConfig: func(ctx context.Context, tenantID, messageType string) (*configpkg.MessageConfig, error) {
 			return configpkg.LoadMessageConfig(ctx, tenantID, messageType, cache, config.LoadAll, config.LogError)
 		},
-		TemplateRoot: config.TemplateRoot,
-		Senders:      channels.NewSenders(config.HTTPClient, config.DeliveryBaseURL),
-		Recorder:     config.Recorder,
-		RetryDelay:   config.RetryDelay,
-		MaxRetry:     config.MaxRetry,
+		LoadSystemVars: config.LoadSystemVars,
+		TemplateRoot:   config.TemplateRoot,
+		Senders:        channels.NewSenders(config.HTTPClient, config.DeliveryBaseURL),
+		Recorder:       config.Recorder,
+		RetryDelay:     config.RetryDelay,
+		MaxRetry:       config.MaxRetry,
 	}
 
 	rawConsumer, err := consumer.NewPulsarConsumer(client, config.Topic, config.Subscription, processor)

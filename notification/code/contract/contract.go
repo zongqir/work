@@ -42,8 +42,6 @@ type DispatchMessage struct {
 	CreatedAt      time.Time    `json:"created_at"`
 	ExpectedSendAt time.Time    `json:"expected_send_at"`
 	ExpireAt       time.Time    `json:"expire_at"`
-	WindowStart    time.Time    `json:"window_start,omitempty"`
-	WindowEnd      time.Time    `json:"window_end,omitempty"`
 	BizVars        TemplateVars `json:"biz_vars"`
 }
 

@@ -76,8 +76,6 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 		CreatedAt:      createdAt,
 		ExpectedSendAt: createdAt,
 		ExpireAt:       createdAt.Add(expireAfter),
-		WindowStart:    windowStart,
-		WindowEnd:      windowEnd,
 		BizVars:        aggregateResult.BizVars,
 	})
 	if err != nil {

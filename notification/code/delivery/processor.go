@@ -40,14 +40,15 @@ type SendRecord struct {
 }
 
 type Processor struct {
-	LoadConfig   func(ctx context.Context, tenantID, messageType string) (*config.MessageConfig, error)
-	TemplateRoot string
-	Senders      map[string]ChannelSender
-	Publisher    Publisher
-	Recorder     Recorder
-	RetryDelay   time.Duration
-	MaxRetry     int
-	Now          func() time.Time
+	LoadConfig     func(ctx context.Context, tenantID, messageType string) (*config.MessageConfig, error)
+	LoadSystemVars func(ctx context.Context, msg *contract.DispatchMessage) (contract.TemplateVars, error)
+	TemplateRoot   string
+	Senders        map[string]ChannelSender
+	Publisher      Publisher
+	Recorder       Recorder
+	RetryDelay     time.Duration
+	MaxRetry       int
+	Now            func() time.Time
 }
 
 func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) error {
@@ -114,6 +115,13 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 	if !ok {
 		return p.saveFailure(ctx, msg, current, fmt.Errorf("%w: channel is required", contract.ErrUnsupportedConfig))
 	}
+	systemVars, err := p.loadSystemVars(ctx, msg)
+	if err != nil {
+		if errors.Is(err, contract.ErrUnsupportedConfig) {
+			return p.saveFailure(ctx, msg, current, err)
+		}
+		return err
+	}
 	policy := &render.EffectivePolicy{
 		TenantID:    msg.TenantID,
 		MessageType: msg.MessageType,
@@ -122,9 +130,8 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 	renderedMessages, err := render.Render(render.RenderInput{
 		TenantID:    msg.TenantID,
 		MessageType: msg.MessageType,
-		WindowStart: msg.WindowStart,
-		WindowEnd:   msg.WindowEnd,
 		BizVars:     msg.BizVars,
+		SystemVars:  systemVars,
 	}, policy, p.TemplateRoot)
 	if err != nil {
 		return p.saveFailure(ctx, msg, current, err)
@@ -166,6 +173,17 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 		Status:          StatusSuccess,
 		UpdatedAt:       current,
 	})
+}
+
+func (p *Processor) loadSystemVars(ctx context.Context, msg *contract.DispatchMessage) (contract.TemplateVars, error) {
+	if p.LoadSystemVars == nil {
+		return contract.TemplateVars{}, nil
+	}
+	systemVars, err := p.LoadSystemVars(ctx, msg)
+	if systemVars == nil {
+		systemVars = contract.TemplateVars{}
+	}
+	return systemVars, err
 }
 
 func (p *Processor) saveFailure(ctx context.Context, msg *contract.DispatchMessage, current time.Time, err error) error {

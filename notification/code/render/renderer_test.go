@@ -9,7 +9,9 @@ import (
 )
 
 func TestBuildTemplateContextAllowsEmptyBizVars(t *testing.T) {
-	context, err := BuildTemplateContext(RenderInput{})
+	context, err := BuildTemplateContext(RenderInput{
+		SystemVars: contract.TemplateVars{"tenant_name": "tenant-a"},
+	})
 	if err != nil {
 		t.Fatalf("BuildTemplateContext failed: %v", err)
 	}
@@ -18,6 +20,9 @@ func TestBuildTemplateContextAllowsEmptyBizVars(t *testing.T) {
 	}
 	if len(context["biz"]) != 0 {
 		t.Fatalf("expected empty biz vars, got %v", context["biz"])
+	}
+	if context["sys"]["tenant_name"] != "tenant-a" {
+		t.Fatalf("expected system vars to be preserved, got %v", context["sys"])
 	}
 }
 

@@ -43,9 +43,8 @@ type RenderedParam struct {
 type RenderInput struct {
 	TenantID    string
 	MessageType string
-	WindowStart time.Time
-	WindowEnd   time.Time
 	BizVars     contract.TemplateVars
+	SystemVars  contract.TemplateVars
 }
 
 func BuildTemplateContext(input RenderInput) (map[string]contract.TemplateVars, error) {
@@ -54,10 +53,8 @@ func BuildTemplateContext(input RenderInput) (map[string]contract.TemplateVars, 
 		bizVars = contract.TemplateVars{}
 	}
 
-	sysVars := contract.TemplateVars{
-		"window_label": formatWindowLabel(input.WindowStart, input.WindowEnd),
-	}
-	if input.WindowStart.IsZero() || input.WindowEnd.IsZero() {
+	sysVars := input.SystemVars
+	if sysVars == nil {
 		sysVars = contract.TemplateVars{}
 	}
 
@@ -65,6 +62,15 @@ func BuildTemplateContext(input RenderInput) (map[string]contract.TemplateVars, 
 		"biz": bizVars,
 		"sys": sysVars,
 	}, nil
+}
+
+func WindowSystemVars(start, end time.Time) contract.TemplateVars {
+	if start.IsZero() || end.IsZero() {
+		return contract.TemplateVars{}
+	}
+	return contract.TemplateVars{
+		"window_label": formatWindowLabel(start, end),
+	}
 }
 
 func Render(input RenderInput, policy *EffectivePolicy, templateRoot string) ([]RenderedChannelMessage, error) {

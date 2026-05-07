@@ -184,6 +184,43 @@ func TestProcessUsesAggregateChannelForAggregateSource(t *testing.T) {
 	}
 }
 
+func TestProcessLoadsSystemVarsForRendering(t *testing.T) {
+	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
+	sender := &stubSender{}
+	p := &Processor{
+		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
+			return smsConfig(), nil
+		},
+		LoadSystemVars: func(_ context.Context, msg *contract.DispatchMessage) (contract.TemplateVars, error) {
+			if msg.TenantID != "t_1" {
+				t.Fatalf("unexpected tenant id: %s", msg.TenantID)
+			}
+			return contract.TemplateVars{
+				"tenant_name": "租户A",
+			}, nil
+		},
+		TemplateRoot: filepath.Join("..", "templates"),
+		Senders: map[string]ChannelSender{
+			"sms": sender,
+		},
+		Recorder: &stubRecorder{},
+		Now: func() time.Time {
+			return now
+		},
+	}
+
+	err := p.Process(context.Background(), newMessage(now))
+	if err != nil {
+		t.Fatalf("Process failed: %v", err)
+	}
+	if sender.channel == nil || sender.channel.SMS == nil {
+		t.Fatal("expected sms to be rendered")
+	}
+	if paramValue(sender.channel.SMS.TemplateParams, "tenant_name") != "租户A" {
+		t.Fatalf("expected tenant_name system var, got %+v", sender.channel.SMS.TemplateParams)
+	}
+}
+
 func TestProcessRetryOnSendFailure(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	publisher := &stubPublisher{}
@@ -467,6 +504,15 @@ func newMessage(createdAt time.Time) *contract.DispatchMessage {
 			"k": "v",
 		},
 	}
+}
+
+func paramValue(params []render.RenderedParam, name string) string {
+	for _, param := range params {
+		if param.ParamName == name {
+			return param.ParamValue
+		}
+	}
+	return ""
 }
 
 func smsConfig() *config.MessageConfig {

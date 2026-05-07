@@ -70,6 +70,7 @@
 
 - `biz_vars` 由业务聚合侧负责
 - `system_vars` 由通知平台负责
+- `system_vars` 在渲染前由平台按消息身份加载，不写入 `DispatchMessage`
 - `tenant_id + message_type -> channel` 由通知配置侧负责
 - `email` 和 `webhook` 走本地模板资产
 - `sms` 直接使用 `templateCode + kv`
@@ -172,6 +173,7 @@ dispatcher := &dispatch.Dispatcher{
 
 - `Processor` 直接就是处理器本体，不再额外包一层 `Options/New`
 - `Processor.Process(...)` 先加载渠道策略并渲染，再按渠道调用发送接口
+- 渲染前可通过 `LoadSystemVars` 按消息身份补充系统变量，例如租户名、窗口标签、时区
 - 每条消息当前只支持一个生效渠道，配置模型使用单数 `channel`
 - 成功：写成功记录
 - 失败且还能重试：投递延期消息
