@@ -67,7 +67,8 @@ func (s *Service) SendAggregate(ctx context.Context, tenantID, messageType strin
 	if s == nil || s.dispatcher == nil {
 		return fmt.Errorf("%w: service is nil", contract.ErrInvalidRequest)
 	}
-	return s.dispatcher.SendAggregate(ctx, tenantID, messageType, windowStart, windowEnd)
+	_, err := s.dispatcher.SendAggregate(ctx, tenantID, messageType, windowStart, windowEnd)
+	return err
 }
 
 func (s *Service) SendRealtime(ctx context.Context, tenantID, messageType string, event any) error {

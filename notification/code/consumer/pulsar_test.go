@@ -21,8 +21,10 @@ func (p *stubProcessor) Process(_ context.Context, msg *contract.DispatchMessage
 }
 
 type stubConsumer struct {
-	acked  int
-	nacked int
+	acked          int
+	nacked         int
+	reconsumeLater int
+	reconsumeDelay time.Duration
 }
 
 func (c *stubConsumer) Subscription() string { return "sub" }
@@ -52,7 +54,10 @@ func (c *stubConsumer) AckCumulative(pulsar.Message) error { return nil }
 func (c *stubConsumer) AckIDCumulative(pulsar.MessageID) error {
 	return nil
 }
-func (c *stubConsumer) ReconsumeLater(pulsar.Message, time.Duration) {}
+func (c *stubConsumer) ReconsumeLater(_ pulsar.Message, delay time.Duration) {
+	c.reconsumeLater++
+	c.reconsumeDelay = delay
+}
 func (c *stubConsumer) ReconsumeLaterWithCustomProperties(pulsar.Message, map[string]string, time.Duration) {
 }
 func (c *stubConsumer) Nack(pulsar.Message)     { c.nacked++ }
@@ -163,6 +168,32 @@ func TestHandleMessageAckOnUnsupportedConfig(t *testing.T) {
 	}
 	if rawConsumer.acked != 1 || rawConsumer.nacked != 0 {
 		t.Fatalf("expected ack=1 nack=0, got ack=%d nack=%d", rawConsumer.acked, rawConsumer.nacked)
+	}
+}
+
+func TestHandleMessageReconsumeLaterOnDelayError(t *testing.T) {
+	rawConsumer := &stubConsumer{}
+	c := &PulsarConsumer{
+		consumer: rawConsumer,
+		processor: &stubProcessor{
+			err: &contract.DelayError{
+				Err:   contract.ErrTemporaryFailure,
+				Delay: 2 * time.Minute,
+			},
+		},
+	}
+
+	err := c.handleMessage(context.Background(), &stubMessage{
+		payload: []byte(`{"idempotency_key":"k","tenant_id":"t","message_type":"m","expected_send_at":"2026-05-07T00:00:00Z","expire_at":"2026-05-07T01:00:00Z"}`),
+	})
+	if err != nil {
+		t.Fatalf("handleMessage failed: %v", err)
+	}
+	if rawConsumer.acked != 0 || rawConsumer.nacked != 0 || rawConsumer.reconsumeLater != 1 {
+		t.Fatalf("expected reconsume_later=1 only, got ack=%d nack=%d reconsume_later=%d", rawConsumer.acked, rawConsumer.nacked, rawConsumer.reconsumeLater)
+	}
+	if rawConsumer.reconsumeDelay != 2*time.Minute {
+		t.Fatalf("unexpected reconsume delay: %v", rawConsumer.reconsumeDelay)
 	}
 }
 

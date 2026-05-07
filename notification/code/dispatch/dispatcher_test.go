@@ -119,9 +119,12 @@ func TestSendAggregate(t *testing.T) {
 		},
 	}
 
-	err := dispatcher.SendAggregate(context.Background(), "t_1", "send_test_aggregate", windowStart, windowEnd)
+	sent, err := dispatcher.SendAggregate(context.Background(), "t_1", "send_test_aggregate", windowStart, windowEnd)
 	if err != nil {
 		t.Fatalf("SendAggregate failed: %v", err)
+	}
+	if !sent {
+		t.Fatal("expected aggregate message to be sent")
 	}
 	if !aggregateHandler.aggregateCalled {
 		t.Fatal("expected aggregate handler to be called")
@@ -175,7 +178,7 @@ func TestSendAggregatePublishesEmptyBizVars(t *testing.T) {
 		},
 	}
 
-	err := dispatcher.SendAggregate(
+	sent, err := dispatcher.SendAggregate(
 		context.Background(),
 		"t_1",
 		"send_test_empty_aggregate",
@@ -184,6 +187,9 @@ func TestSendAggregatePublishesEmptyBizVars(t *testing.T) {
 	)
 	if err != nil {
 		t.Fatalf("SendAggregate failed: %v", err)
+	}
+	if !sent {
+		t.Fatal("expected aggregate message to be sent")
 	}
 	if publisher.msg == nil {
 		t.Fatal("expected message to be published")
@@ -350,7 +356,7 @@ func TestSendAggregateRejectsInvalidFilter(t *testing.T) {
 		},
 	}
 
-	err := dispatcher.SendAggregate(
+	_, err := dispatcher.SendAggregate(
 		context.Background(),
 		"t_1",
 		"send_test_aggregate",

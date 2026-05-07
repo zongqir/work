@@ -31,17 +31,17 @@ type Dispatcher struct {
 	cache     config.Cache
 }
 
-func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) error {
+func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) (bool, error) {
 	spec, aggregate, cfg, err := d.prepareAggregate(ctx, tenantID, messageType)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if cfg == nil || !cfg.AggregateEnabled {
-		return nil
+		return false, nil
 	}
 	filter, err := parseHandlerPayload(spec, spec.NewFilter(), cfg.Filter)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	aggregateResult, err := aggregate.Aggregate(ctx, &contract.BizAggregateRequest{
@@ -51,10 +51,10 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 		Filter:      filter,
 	})
 	if err != nil {
-		return err
+		return false, err
 	}
 	if aggregateResult == nil {
-		return nil
+		return false, nil
 	}
 
 	now := time.Now
@@ -80,7 +80,10 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 		WindowEnd:      windowEnd,
 		BizVars:        aggregateResult.BizVars,
 	})
-	return err
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType string, event any) error {

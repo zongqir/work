@@ -226,7 +226,6 @@ func TestProcessRetryOnSendFailure(t *testing.T) {
 
 func TestProcessBeforeExpectedSendAt(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
-	publisher := &stubPublisher{}
 	p := &Processor{
 		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
 			return smsConfig(), nil
@@ -235,8 +234,7 @@ func TestProcessBeforeExpectedSendAt(t *testing.T) {
 		Senders: map[string]ChannelSender{
 			"sms": &stubSender{},
 		},
-		Publisher: publisher,
-		Recorder:  &stubRecorder{},
+		Recorder: &stubRecorder{},
 		Now: func() time.Time {
 			return now
 		},
@@ -246,17 +244,12 @@ func TestProcessBeforeExpectedSendAt(t *testing.T) {
 	msg.ExpectedSendAt = now.Add(2 * time.Minute)
 
 	err := p.Process(context.Background(), msg)
-	if err != nil {
-		t.Fatalf("Process failed: %v", err)
+	var delayErr *contract.DelayError
+	if !errors.As(err, &delayErr) {
+		t.Fatalf("expected DelayError, got %v", err)
 	}
-	if publisher.msg == nil {
-		t.Fatal("expected message to be re-published")
-	}
-	if publisher.msg.RetryCount != 0 {
-		t.Fatalf("expected retry_count=0, got %d", publisher.msg.RetryCount)
-	}
-	if !publisher.msg.ExpectedSendAt.Equal(msg.ExpectedSendAt) {
-		t.Fatalf("unexpected expected_send_at: %v", publisher.msg.ExpectedSendAt)
+	if delayErr.Delay != 2*time.Minute {
+		t.Fatalf("unexpected delay: %v", delayErr.Delay)
 	}
 }
 
@@ -344,6 +337,82 @@ func TestProcessRecordsFailureOnUnsupportedSender(t *testing.T) {
 	err := p.Process(context.Background(), newMessage(now))
 	if err != nil {
 		t.Fatalf("Process failed: %v", err)
+	}
+	if recorder.record == nil {
+		t.Fatal("expected failed record")
+	}
+	if recorder.record.Status != StatusFailed {
+		t.Fatalf("expected failed, got %s", recorder.record.Status)
+	}
+}
+
+func TestProcessRecordsFailureOnMultipleChannels(t *testing.T) {
+	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
+	recorder := &stubRecorder{}
+	p := &Processor{
+		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
+			cfg := smsConfig()
+			cfg.Channels = append(cfg.Channels, render.ChannelPolicy{
+				Channel:     "sms",
+				TemplateKey: "anotherTemplate",
+				Audience: render.AudienceConfig{
+					Recipients: []string{"13211223344"},
+				},
+				Delivery: render.DeliveryConfig{
+					Platform: "ali",
+				},
+			})
+			return cfg, nil
+		},
+		TemplateRoot: filepath.Join("..", "templates"),
+		Senders: map[string]ChannelSender{
+			"sms": &stubSender{},
+		},
+		Recorder: recorder,
+		Now: func() time.Time {
+			return now
+		},
+	}
+
+	err := p.Process(context.Background(), newMessage(now))
+	if err != nil {
+		t.Fatalf("Process failed: %v", err)
+	}
+	if recorder.record == nil {
+		t.Fatal("expected failed record")
+	}
+	if recorder.record.Status != StatusFailed {
+		t.Fatalf("expected failed, got %s", recorder.record.Status)
+	}
+}
+
+func TestProcessRecordsFailureOnPermanentSenderError(t *testing.T) {
+	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
+	publisher := &stubPublisher{}
+	recorder := &stubRecorder{}
+	p := &Processor{
+		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
+			return smsConfig(), nil
+		},
+		TemplateRoot: filepath.Join("..", "templates"),
+		Senders: map[string]ChannelSender{
+			"sms": &stubSender{
+				err: contract.ErrInvalidRequest,
+			},
+		},
+		Publisher: publisher,
+		Recorder:  recorder,
+		Now: func() time.Time {
+			return now
+		},
+	}
+
+	err := p.Process(context.Background(), newMessage(now))
+	if err != nil {
+		t.Fatalf("Process failed: %v", err)
+	}
+	if publisher.msg != nil {
+		t.Fatal("did not expect retry message")
 	}
 	if recorder.record == nil {
 		t.Fatal("expected failed record")

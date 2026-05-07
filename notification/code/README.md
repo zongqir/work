@@ -156,7 +156,7 @@ dispatcher := &dispatch.Dispatcher{
 
 - 同样先从缓存里取这个租户这个 `message_type` 对应的配置
 - 然后走业务方实现的 `Aggregate(...)`
-- 拿到结果后直接发出去
+- 拿到结果后直接发出去，并返回本次是否实际发布了消息
 
 聚合调度口径：
 
@@ -165,13 +165,14 @@ dispatcher := &dispatch.Dispatcher{
 - 配置里 `aggregate_enabled=true` 且 `aggregate_period_minutes > 0` 才参与判断
 - 它只判断“这个租户这个消息类型这一轮该不该跑聚合”
 - 命中后直接调用 `SendAggregate(...)`
-- 调度状态只记录 `last_window_end`
+- 只有 `SendAggregate(...)` 实际发布成功后，才推进 `last_window_end`
 - 当前实现每次 tick 最多推进一个聚合窗口，不做一口气补很多窗口
 
 投递处理入口统一放在 `delivery/`：
 
 - `Processor` 直接就是处理器本体，不再额外包一层 `Options/New`
 - `Processor.Process(...)` 先加载渠道策略并渲染，再按渠道调用发送接口
+- 每条消息当前只支持一个生效渠道，多渠道配置会按配置错误记录失败
 - 成功：写成功记录
 - 失败且还能重试：投递延期消息
 - 默认最多重试 `3` 次，也就是一共最多消费 `4` 次

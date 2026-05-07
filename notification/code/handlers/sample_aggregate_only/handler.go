@@ -2,7 +2,6 @@ package sampleaggregateonly
 
 import (
 	"context"
-	"fmt"
 
 	"work/notification/code/contract"
 )
@@ -39,10 +38,7 @@ func (h *Handler) Aggregate(_ context.Context, req *contract.BizAggregateRequest
 
 	return &contract.BizAggregateResult{
 		BizVars: contract.TemplateVars{
-			"window_start":   req.WindowStart.Format("2006-01-02 15:04"),
-			"window_end":     req.WindowEnd.Format("2006-01-02 15:04"),
 			"severity_count": severityCount,
-			"summary":        fmt.Sprintf("window %s -> %s", req.WindowStart.Format("15:04"), req.WindowEnd.Format("15:04")),
 		},
 	}, nil
 }

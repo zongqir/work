@@ -103,6 +103,12 @@ func (c *PulsarConsumer) handleMessage(ctx context.Context, message pulsar.Messa
 		action = "ack"
 		return c.consumer.Ack(message)
 	}
+	var delayErr *contract.DelayError
+	if errors.As(err, &delayErr) {
+		action = "reconsume_later"
+		c.consumer.ReconsumeLater(message, delayErr.Delay)
+		return nil
+	}
 	if errors.Is(err, contract.ErrInvalidRequest) {
 		action = "drop_invalid_request"
 		if c.LogError != nil {

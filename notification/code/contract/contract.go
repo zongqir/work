@@ -14,6 +14,25 @@ var (
 	ErrCapabilityNotImplemented = errors.New("capability not implemented")
 )
 
+type DelayError struct {
+	Err   error
+	Delay time.Duration
+}
+
+func (e *DelayError) Error() string {
+	if e == nil || e.Err == nil {
+		return "delayed"
+	}
+	return e.Err.Error()
+}
+
+func (e *DelayError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
 type DispatchMessage struct {
 	IdempotencyKey string       `json:"idempotency_key"`
 	TenantID       string       `json:"tenant_id"`

@@ -11,7 +11,7 @@ import (
 )
 
 type AggregateSender interface {
-	SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) error
+	SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) (bool, error)
 }
 
 type AggregateWatermarkStore interface {
@@ -142,8 +142,12 @@ func (s *AggregateScheduler) tickOne(
 	}
 
 	windowStart := windowEnd.Add(-period)
-	if err := s.Sender.SendAggregate(ctx, tenantID, messageType, windowStart, windowEnd); err != nil {
+	sent, err := s.Sender.SendAggregate(ctx, tenantID, messageType, windowStart, windowEnd)
+	if err != nil {
 		return err
+	}
+	if !sent {
+		return nil
 	}
 	if err := s.WatermarkStore.SaveWindowEnd(ctx, tenantID, messageType, windowEnd); err != nil {
 		return err

@@ -89,11 +89,10 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 	current := now()
 
 	if current.Before(msg.ExpectedSendAt) {
-		if p.Publisher == nil {
-			return fmt.Errorf("%w: publisher is required", contract.ErrTemporaryFailure)
+		return &contract.DelayError{
+			Err:   contract.ErrTemporaryFailure,
+			Delay: msg.ExpectedSendAt.Sub(current),
 		}
-		pending := *msg
-		return p.Publisher.Publish(ctx, &pending)
 	}
 	if current.After(msg.ExpireAt) {
 		record := *msg
@@ -114,6 +113,9 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 	channels := cfg.ChannelsForSource(msg.Source)
 	if len(channels) == 0 {
 		return p.saveFailure(ctx, msg, current, fmt.Errorf("%w: channels are required", contract.ErrUnsupportedConfig))
+	}
+	if len(channels) > 1 {
+		return p.saveFailure(ctx, msg, current, fmt.Errorf("%w: only one channel is supported per message", contract.ErrUnsupportedConfig))
 	}
 	policy := &render.EffectivePolicy{
 		TenantID:    msg.TenantID,
@@ -138,6 +140,9 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 		}
 		err = sender.Send(ctx, msg, channelCfg, channel)
 		if err != nil {
+			if errors.Is(err, contract.ErrInvalidRequest) || errors.Is(err, contract.ErrUnsupportedConfig) {
+				return p.saveFailure(ctx, msg, current, err)
+			}
 			maxRetry := p.MaxRetry
 			if maxRetry <= 0 {
 				maxRetry = DefaultMaxRetry
