@@ -44,7 +44,7 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 		return err
 	}
 
-	result, err := handler.Aggregate(ctx, &contract.BizAggregateRequest{
+	aggregateResult, err := handler.Aggregate(ctx, &contract.BizAggregateRequest{
 		TenantID:    tenantID,
 		WindowStart: windowStart,
 		WindowEnd:   windowEnd,
@@ -53,7 +53,7 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 	if err != nil {
 		return err
 	}
-	if result == nil || len(result.BizVars) == 0 {
+	if aggregateResult == nil || len(aggregateResult.BizVars) == 0 {
 		return nil
 	}
 
@@ -67,7 +67,7 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 		expireAfter = 30 * time.Minute
 	}
 
-	return d.Publisher.Publish(ctx, &contract.DispatchMessage{
+	err = d.Publisher.Publish(ctx, &contract.DispatchMessage{
 		IdempotencyKey: buildAggregateIdempotencyKey(tenantID, handler.MessageType(), windowStart, windowEnd),
 		TenantID:       tenantID,
 		MessageType:    handler.MessageType(),
@@ -78,8 +78,9 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 		ExpireAt:       createdAt.Add(expireAfter),
 		WindowStart:    windowStart,
 		WindowEnd:      windowEnd,
-		BizVars:        result.BizVars,
+		BizVars:        aggregateResult.BizVars,
 	})
+	return err
 }
 
 func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType string, event any) error {
@@ -100,17 +101,17 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 		Event:    event,
 	}
 
-	result, err := handler.Evaluate(ctx, realtimeReq)
+	realtimeResult, err := handler.Evaluate(ctx, realtimeReq)
 	if err != nil {
 		return err
 	}
-	if result == nil {
+	if realtimeResult == nil {
 		return fmt.Errorf("%w: realtime result is nil", contract.ErrTemporaryFailure)
 	}
-	if !result.Matched {
+	if !realtimeResult.Matched {
 		return nil
 	}
-	if result.IdempotencyKey == "" {
+	if realtimeResult.IdempotencyKey == "" {
 		return fmt.Errorf("%w: idempotency_key is required", contract.ErrInvalidRequest)
 	}
 
@@ -124,8 +125,8 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 		expireAfter = 5 * time.Minute
 	}
 
-	return d.Publisher.Publish(ctx, &contract.DispatchMessage{
-		IdempotencyKey: buildRealtimeIdempotencyKey(tenantID, handler.MessageType(), result.IdempotencyKey),
+	err = d.Publisher.Publish(ctx, &contract.DispatchMessage{
+		IdempotencyKey: buildRealtimeIdempotencyKey(tenantID, handler.MessageType(), realtimeResult.IdempotencyKey),
 		TenantID:       tenantID,
 		MessageType:    handler.MessageType(),
 		Source:         contract.DispatchSourceRealtime,
@@ -133,8 +134,9 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 		CreatedAt:      createdAt,
 		ExpectedSendAt: createdAt,
 		ExpireAt:       createdAt.Add(expireAfter),
-		BizVars:        result.BizVars,
+		BizVars:        realtimeResult.BizVars,
 	})
+	return err
 }
 
 func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) (contract.Handler, *config.MessageConfig, error) {

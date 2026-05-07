@@ -221,6 +221,33 @@ dispatcher := &dispatch.Dispatcher{
 - `consumer/`：Pulsar 消费和 `Processor.Process(...)` 接线
 - `dispatch/`：配置驱动的消息分发
 - `scheduler/`：聚合定时调度
+- `metrics/`：Prometheus 指标采集和 `/metrics` handler
+
+Prometheus 接入口径：
+
+- 这是定死的默认实现，不做自定义 registry，不做注入
+- 当前只在消费处理入口打点：`consumer.handleMessage`
+- HTTP 层直接挂 `metrics.Handler()` 暴露 `/metrics`
+- 只保留消费总数、处理结果、处理耗时
+
+最小示例：
+
+```go
+svc, err := bootstrap.New(bootstrap.Config{
+    PulsarClientOptions: pulsar.ClientOptions{
+        URL: "pulsar://127.0.0.1:6650",
+    },
+    Topic:   "persistent://public/default/aes-dispatch",
+    LoadAll: loadAllConfigs,
+})
+if err != nil {
+    return err
+}
+defer svc.Close()
+
+mux := http.NewServeMux()
+mux.Handle("/metrics", metrics.Handler())
+```
 
 当前代码里已经去掉几层没必要的包装：
 

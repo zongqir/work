@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/apache/pulsar-client-go/pulsar"
 	"work/notification/code/contract"
+	"work/notification/code/metrics"
 )
 
 type Processor interface {
@@ -79,19 +81,30 @@ func (c *PulsarConsumer) Close() {
 }
 
 func (c *PulsarConsumer) handleMessage(ctx context.Context, message pulsar.Message) error {
+	startedAt := time.Now()
+	messageType := "unknown"
+	action := "error"
+	defer func() {
+		metrics.ObserveConsume(messageType, action, time.Since(startedAt))
+	}()
+
 	var dispatchMessage contract.DispatchMessage
 	if err := json.Unmarshal(message.Payload(), &dispatchMessage); err != nil {
+		action = "drop_decode_error"
 		if c.LogError != nil {
 			c.LogError(ctx, "decode dispatch message failed", err)
 		}
 		return c.consumer.Ack(message)
 	}
+	messageType = dispatchMessage.MessageType
 
 	err := c.processor.Process(ctx, &dispatchMessage)
 	if err == nil {
+		action = "ack"
 		return c.consumer.Ack(message)
 	}
 	if errors.Is(err, contract.ErrInvalidRequest) {
+		action = "drop_invalid_request"
 		if c.LogError != nil {
 			c.LogError(ctx, "drop invalid dispatch message", err)
 		}
@@ -101,6 +114,7 @@ func (c *PulsarConsumer) handleMessage(ctx context.Context, message pulsar.Messa
 	if c.LogError != nil {
 		c.LogError(ctx, "process dispatch message failed", err)
 	}
+	action = "nack_process_failed"
 	c.consumer.Nack(message)
 	return nil
 }

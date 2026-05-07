@@ -139,7 +139,10 @@ func (s *AggregateScheduler) tickOne(
 	if err := s.Sender.SendAggregate(ctx, tenantID, messageType, windowStart, windowEnd); err != nil {
 		return err
 	}
-	return s.WatermarkStore.SaveWindowEnd(ctx, tenantID, messageType, windowEnd)
+	if err := s.WatermarkStore.SaveWindowEnd(ctx, tenantID, messageType, windowEnd); err != nil {
+		return err
+	}
+	return nil
 }
 
 func truncateToPeriod(value time.Time, period time.Duration) time.Time {

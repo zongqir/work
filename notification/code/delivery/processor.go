@@ -125,7 +125,8 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 		if !ok {
 			return fmt.Errorf("%w: unsupported channel sender: %s", contract.ErrUnsupportedConfig, channel.Channel)
 		}
-		if err := sender.Send(ctx, msg, channelCfg, channel); err != nil {
+		err = sender.Send(ctx, msg, channelCfg, channel)
+		if err != nil {
 			maxRetry := p.MaxRetry
 			if maxRetry <= 0 {
 				maxRetry = DefaultMaxRetry
