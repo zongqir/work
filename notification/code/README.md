@@ -74,7 +74,7 @@
 - `email` 和 `webhook` 走本地模板资产
 - `sms` 直接使用 `templateCode + kv`
 
-生产级契约入口见 [contract.go](/C:/Users/Administrator/code/notes/code/aggregate_registry/contract/contract.go:1) 和 [types.go](/C:/Users/Administrator/code/notes/code/aggregate_registry/contract/types.go:1)：
+生产级契约入口见 [contract.go](/C:/Users/Administrator/code/work/notification/code/contract/contract.go:1) 和 [types.go](/C:/Users/Administrator/code/work/notification/code/contract/types.go:1)：
 
 - `Handler`：业务方必须实现的最小接口
 - `MessageType()`：业务方自己定义消息标识
@@ -91,11 +91,11 @@
 - `ErrTemporaryFailure`：临时失败，可由调用方决定是否重试
 - `ErrHandlerNotFound`：运行时没有找到对应 `message_type` 的实现
 
-统一分发入口见 [dispatcher.go](/C:/Users/Administrator/code/notes/code/aggregate_registry/dispatch/dispatcher.go:1)。
+统一分发入口见 [dispatcher.go](/C:/Users/Administrator/code/work/notification/code/dispatch/dispatcher.go:1)。
 
-默认启动入口见 [bootstrap.go](/C:/Users/Administrator/code/notes/code/aggregate_registry/bootstrap/bootstrap.go:1)。
+默认启动入口见 [bootstrap.go](/C:/Users/Administrator/code/work/notification/code/bootstrap/bootstrap.go:1)。
 
-最小消费者入口见 [pulsar.go](/C:/Users/Administrator/code/notes/code/aggregate_registry/consumer/pulsar.go:1)。
+最小消费者入口见 [pulsar.go](/C:/Users/Administrator/code/work/notification/code/consumer/pulsar.go:1)。
 
 简单模式接入时，外部不需要自己构建 `Publisher`，只需要准备：
 
@@ -230,7 +230,7 @@ dispatcher := &dispatch.Dispatcher{
 当前目录结构：
 
 ```text
-code/aggregate_registry/
+code/
   bootstrap/
     bootstrap.go
   config/
@@ -281,7 +281,7 @@ code/aggregate_registry/
 最轻的预览方式是复用 `preview/` 子目录里的辅助函数，或者直接跑那里的测试：
 
 ```powershell
-cd .\code\aggregate_registry
+cd .\code\work
 go test .\preview
 ```
 

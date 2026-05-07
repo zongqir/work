@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"notes/code/aggregate_registry/contract"
+	"work/notification/code/contract"
 )
 
 type RenderedChannelMessage struct {

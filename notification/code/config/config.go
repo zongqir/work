@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"notes/code/aggregate_registry/contract"
-	"notes/code/aggregate_registry/render"
+	"work/notification/code/contract"
+	"work/notification/code/render"
 )
 
 type MessageConfig struct {

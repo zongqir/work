@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"notes/code/aggregate_registry/config"
-	"notes/code/aggregate_registry/contract"
-	"notes/code/aggregate_registry/render"
+	"work/notification/code/config"
+	"work/notification/code/contract"
+	"work/notification/code/render"
 )
 
 type Sender interface {

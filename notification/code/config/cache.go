@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"notes/code/aggregate_registry/contract"
+	"work/notification/code/contract"
 )
 
 const (
@@ -142,4 +142,3 @@ func (c *Cache) refreshTimeout() time.Duration {
 	}
 	return defaultRefreshTimeout
 }
-

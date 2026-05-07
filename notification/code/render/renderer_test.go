@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"notes/code/aggregate_registry/contract"
+	"work/notification/code/contract"
 )
 
 func TestBuildTemplateContextRejectsNil(t *testing.T) {

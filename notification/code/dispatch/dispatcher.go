@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"notes/code/aggregate_registry/config"
-	"notes/code/aggregate_registry/contract"
+	"work/notification/code/config"
+	"work/notification/code/contract"
 )
 
 // MessagePublisher 由平台提供，负责把命中的实时结果发布出去。

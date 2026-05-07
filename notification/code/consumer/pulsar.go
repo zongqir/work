@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/apache/pulsar-client-go/pulsar"
-	"notes/code/aggregate_registry/contract"
+	"work/notification/code/contract"
 )
 
 type Processor interface {

@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/apache/pulsar-client-go/pulsar"
-	"notes/code/aggregate_registry/contract"
-	"notes/code/aggregate_registry/dispatch"
-	"notes/code/aggregate_registry/publisher"
+	"work/notification/code/contract"
+	"work/notification/code/dispatch"
+	"work/notification/code/publisher"
 )
 
 type Config struct {
@@ -85,4 +85,3 @@ func (s *Service) Close() {
 		s.client.Close()
 	}
 }
-
