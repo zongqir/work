@@ -1,14 +1,14 @@
 {
   "tenant_id": "t_1001",
-  "message_type": "xdr_risk_digest",
+  "message_type": "sample_both",
   "channels": [
     {
       "channel": "email",
-      "template_code": "xdr_risk_digest_default"
+      "template_code": "sample_both_default"
     },
     {
       "channel": "webhook",
-      "template_code": "xdr_risk_digest_default"
+      "template_code": "sample_both_default"
     },
     {
       "channel": "sms",

@@ -53,7 +53,7 @@ func TestAggregateSchedulerTickFirstWindow(t *testing.T) {
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
 				"t_1": {
-					"xdr_risk_digest": json.RawMessage(`{"aggregate_enabled":true,"aggregate_period_minutes":5,"filter":{"k":"v"}}`),
+					"sample_both": json.RawMessage(`{"aggregate_enabled":true,"aggregate_period_minutes":5,"filter":{"k":"v"}}`),
 				},
 			}, nil
 		},
@@ -72,7 +72,7 @@ func TestAggregateSchedulerTickFirstWindow(t *testing.T) {
 	if !sender.windowEnd.Equal(time.Date(2026, 4, 29, 12, 5, 0, 0, time.UTC)) {
 		t.Fatalf("unexpected window_end: %v", sender.windowEnd)
 	}
-	if got := store.values["t_1:xdr_risk_digest"]; !got.Equal(sender.windowEnd) {
+	if got := store.values["t_1:sample_both"]; !got.Equal(sender.windowEnd) {
 		t.Fatalf("unexpected saved watermark: %v", got)
 	}
 }
@@ -82,7 +82,7 @@ func TestAggregateSchedulerTickSkipWhenNotDue(t *testing.T) {
 	sender := &stubAggregateSender{}
 	store := &stubAggregateWatermarkStore{
 		values: map[string]time.Time{
-			"t_1:xdr_risk_digest": time.Date(2026, 4, 29, 12, 10, 0, 0, time.UTC),
+			"t_1:sample_both": time.Date(2026, 4, 29, 12, 10, 0, 0, time.UTC),
 		},
 	}
 	scheduler := &AggregateScheduler{
@@ -94,7 +94,7 @@ func TestAggregateSchedulerTickSkipWhenNotDue(t *testing.T) {
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
 				"t_1": {
-					"xdr_risk_digest": json.RawMessage(`{"aggregate_enabled":true,"aggregate_period_minutes":5}`),
+					"sample_both": json.RawMessage(`{"aggregate_enabled":true,"aggregate_period_minutes":5}`),
 				},
 			}, nil
 		},
@@ -114,7 +114,7 @@ func TestAggregateSchedulerTickNextWindowFromWatermark(t *testing.T) {
 	sender := &stubAggregateSender{}
 	store := &stubAggregateWatermarkStore{
 		values: map[string]time.Time{
-			"t_1:xdr_risk_digest": time.Date(2026, 4, 29, 12, 5, 0, 0, time.UTC),
+			"t_1:sample_both": time.Date(2026, 4, 29, 12, 5, 0, 0, time.UTC),
 		},
 	}
 	scheduler := &AggregateScheduler{
@@ -126,7 +126,7 @@ func TestAggregateSchedulerTickNextWindowFromWatermark(t *testing.T) {
 		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
 			return map[string]map[string]json.RawMessage{
 				"t_1": {
-					"xdr_risk_digest": json.RawMessage(`{"aggregate_enabled":true,"aggregate_period_minutes":5}`),
+					"sample_both": json.RawMessage(`{"aggregate_enabled":true,"aggregate_period_minutes":5}`),
 				},
 			}, nil
 		},

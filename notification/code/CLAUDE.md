@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 go build ./...
 go test ./...
-go test ./handlers/xdr_risk_digest/   # single package
+go test ./handlers/sample_both/   # single package
 ```
 
 Module: `notes`, Go 1.24.

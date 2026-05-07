@@ -78,7 +78,7 @@ func TestProcessSuccess(t *testing.T) {
 	if recorder.record == nil {
 		t.Fatal("expected record to be saved")
 	}
-	if recorder.record.IdempotencyKey != "realtime:t_1:xdr_risk_digest:biz-1" {
+	if recorder.record.IdempotencyKey != "realtime:t_1:sample_both:biz-1" {
 		t.Fatalf("unexpected idempotency_key: %s", recorder.record.IdempotencyKey)
 	}
 	if recorder.record.Status != StatusSuccess {
@@ -297,9 +297,9 @@ func TestProcessThirdRetryStillPublishes(t *testing.T) {
 
 func newMessage(createdAt time.Time) *contract.DispatchMessage {
 	return &contract.DispatchMessage{
-		IdempotencyKey: "realtime:t_1:xdr_risk_digest:biz-1",
+		IdempotencyKey: "realtime:t_1:sample_both:biz-1",
 		TenantID:       "t_1",
-		MessageType:    "xdr_risk_digest",
+		MessageType:    "sample_both",
 		Source:         contract.DispatchSourceRealtime,
 		RetryCount:     0,
 		CreatedAt:      createdAt,

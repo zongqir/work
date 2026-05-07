@@ -278,7 +278,7 @@ code/
     dispatcher.go
     dispatcher_test.go
   handlers/
-    xdr_risk_digest/
+    sample_both/
       handler.go
       handler_test.go
   sample_request.json
@@ -299,10 +299,10 @@ code/
     aggregate_scheduler_test.go
   templates/
     email/
-      xdr_risk_digest_default.subject.tmpl
-      xdr_risk_digest_default.body.tmpl
+      sample_both_default.subject.tmpl
+      sample_both_default.body.tmpl
     webhook/
-      xdr_risk_digest_default.tmpl
+      sample_both_default.tmpl
 ```
 
 最轻的预览方式是复用 `preview/` 子目录里的辅助函数，或者直接跑那里的测试：

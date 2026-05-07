@@ -18,7 +18,7 @@ func TestBuildTemplateContextRejectsEmptyBizVars(t *testing.T) {
 func TestRenderRejectsInvalidInput(t *testing.T) {
 	policy := &EffectivePolicy{
 		TenantID:    "t_1",
-		MessageType: "xdr_risk_digest",
+		MessageType: "sample_both",
 	}
 
 	_, err := Render(RenderInput{}, policy, ".")
@@ -28,7 +28,7 @@ func TestRenderRejectsInvalidInput(t *testing.T) {
 
 	_, err = Render(RenderInput{
 		TenantID:    "t_1",
-		MessageType: "xdr_risk_digest",
+		MessageType: "sample_both",
 		BizVars:     contract.TemplateVars{"k": "v"},
 	}, nil, ".")
 	if !errors.Is(err, contract.ErrInvalidRequest) {
@@ -39,12 +39,12 @@ func TestRenderRejectsInvalidInput(t *testing.T) {
 func TestRenderRejectsEscapingTemplatePath(t *testing.T) {
 	input := RenderInput{
 		TenantID:    "t_1",
-		MessageType: "xdr_risk_digest",
+		MessageType: "sample_both",
 		BizVars:     contract.TemplateVars{"total_count": "1"},
 	}
 	policy := &EffectivePolicy{
 		TenantID:    "t_1",
-		MessageType: "xdr_risk_digest",
+		MessageType: "sample_both",
 		Channels: []ChannelPolicy{
 			{
 				Channel:      "email",
@@ -62,13 +62,13 @@ func TestRenderRejectsEscapingTemplatePath(t *testing.T) {
 func TestRenderRejectsPolicyMismatch(t *testing.T) {
 	input := RenderInput{
 		TenantID:    "t_1",
-		MessageType: "xdr_risk_digest",
+		MessageType: "sample_both",
 		BizVars:     contract.TemplateVars{"k": "v"},
 	}
 
 	_, err := Render(input, &EffectivePolicy{
 		TenantID:    "t_2",
-		MessageType: "xdr_risk_digest",
+		MessageType: "sample_both",
 	}, ".")
 	if err == nil {
 		t.Fatal("expected tenant mismatch")
