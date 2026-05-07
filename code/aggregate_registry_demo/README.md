@@ -89,7 +89,7 @@
 - `ErrInvalidRequest`：请求非法
 - `ErrUnsupportedConfig`：配置不支持
 - `ErrTemporaryFailure`：临时失败，可由调用方决定是否重试
-- `ErrAggregatorNotFound`：运行时没有找到对应 `message_type` 的实现
+- `ErrHandlerNotFound`：运行时没有找到对应 `message_type` 的实现
 
 统一分发入口见 [dispatcher.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/dispatch/dispatcher.go:1)。
 

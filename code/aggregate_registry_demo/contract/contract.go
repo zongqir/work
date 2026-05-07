@@ -7,10 +7,10 @@ import (
 )
 
 var (
-	ErrInvalidRequest     = errors.New("invalid aggregate request")
-	ErrUnsupportedConfig  = errors.New("unsupported aggregate config")
-	ErrTemporaryFailure   = errors.New("temporary aggregate failure")
-	ErrAggregatorNotFound = errors.New("aggregator not found")
+	ErrInvalidRequest    = errors.New("invalid request")
+	ErrUnsupportedConfig = errors.New("unsupported config")
+	ErrTemporaryFailure  = errors.New("temporary failure")
+	ErrHandlerNotFound   = errors.New("handler not found")
 )
 
 type DispatchMessage struct {

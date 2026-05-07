@@ -29,7 +29,7 @@ func Resolve(messageType string) (Handler, error) {
 
 	handler, ok := registeredHandlers[messageType]
 	if !ok {
-		return nil, fmt.Errorf("%w: %s", ErrAggregatorNotFound, messageType)
+		return nil, fmt.Errorf("%w: %s", ErrHandlerNotFound, messageType)
 	}
 	return handler, nil
 }

@@ -25,8 +25,8 @@ func TestResolveNotFound(t *testing.T) {
 	resetRegistryForTest()
 
 	_, err := Resolve("missing")
-	if !errors.Is(err, ErrAggregatorNotFound) {
-		t.Fatalf("expected ErrAggregatorNotFound, got %v", err)
+	if !errors.Is(err, ErrHandlerNotFound) {
+		t.Fatalf("expected ErrHandlerNotFound, got %v", err)
 	}
 }
 
