@@ -12,14 +12,14 @@ import (
 
 type DefaultMessageConfigLoader func(ctx context.Context, messageType string) (json.RawMessage, error)
 
-func LoadEffectiveMessageConfig(
-	ctx context.Context,
-	tenantID, messageType string,
-	loadDefault DefaultMessageConfigLoader,
-	store dao.TenantMessageConfigStore,
-) (*MessageConfig, error) {
-	if loadDefault == nil {
-		return nil, fmt.Errorf("%w: load_default is required", contract.ErrInvalidRequest)
+type MessageConfigLoader struct {
+	Default DefaultMessageConfigLoader
+	Store   dao.TenantMessageConfigStore
+}
+
+func (l *MessageConfigLoader) Load(ctx context.Context, tenantID, messageType string) (*MessageConfig, error) {
+	if l == nil {
+		return nil, fmt.Errorf("%w: message_config_loader is required", contract.ErrInvalidRequest)
 	}
 	if tenantID == "" {
 		return nil, fmt.Errorf("%w: tenant_id is required", contract.ErrInvalidRequest)
@@ -29,9 +29,9 @@ func LoadEffectiveMessageConfig(
 	}
 
 	var tenantCfg *dao.TenantMessageConfig
-	if store != nil {
+	if l.Store != nil {
 		var err error
-		tenantCfg, err = store.GetTenantMessageConfig(ctx, tenantID, messageType)
+		tenantCfg, err = l.Store.GetTenantMessageConfig(ctx, tenantID, messageType)
 		if err != nil {
 			if !errorsIsNotFound(err) {
 				return nil, err
@@ -42,8 +42,11 @@ func LoadEffectiveMessageConfig(
 	if tenantCfg != nil {
 		return messageConfigFromTenantRecord(tenantCfg), nil
 	}
+	if l.Default == nil {
+		return nil, fmt.Errorf("%w: default config loader is required", contract.ErrInvalidRequest)
+	}
 
-	baseRaw, err := loadDefault(ctx, messageType)
+	baseRaw, err := l.Default(ctx, messageType)
 	if err != nil {
 		return nil, err
 	}

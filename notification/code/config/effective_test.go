@@ -30,13 +30,16 @@ func (s *stubTenantMessageConfigStore) DeleteTenantMessageConfig(context.Context
 	return nil
 }
 
-func TestLoadEffectiveMessageConfigFallsBackToDefault(t *testing.T) {
-	store := &stubTenantMessageConfigStore{err: dao.ErrNotFound}
-	cfg, err := LoadEffectiveMessageConfig(context.Background(), "t_1", "m_1", func(context.Context, string) (json.RawMessage, error) {
-		return json.RawMessage(`{"channel":{"channel":"sms","template_code":"base"}}`), nil
-	}, store)
+func TestMessageConfigLoaderFallsBackToDefault(t *testing.T) {
+	loader := &MessageConfigLoader{
+		Store: &stubTenantMessageConfigStore{err: dao.ErrNotFound},
+		Default: func(context.Context, string) (json.RawMessage, error) {
+			return json.RawMessage(`{"channel":{"channel":"sms","template_code":"base"}}`), nil
+		},
+	}
+	cfg, err := loader.Load(context.Background(), "t_1", "m_1")
 	if err != nil {
-		t.Fatalf("LoadEffectiveMessageConfig failed: %v", err)
+		t.Fatalf("Load failed: %v", err)
 	}
 	if cfg == nil {
 		t.Fatal("expected config")
@@ -46,23 +49,26 @@ func TestLoadEffectiveMessageConfigFallsBackToDefault(t *testing.T) {
 	}
 }
 
-func TestLoadEffectiveMessageConfigUsesTenantRecordDirectly(t *testing.T) {
-	store := &stubTenantMessageConfigStore{
-		item: &dao.TenantMessageConfig{
-			RealtimeEnabled:        false,
-			AggregateEnabled:       false,
-			AggregatePeriodMinutes: 15,
-			Channel: render.ChannelPolicy{
-				Channel:      "email",
-				TemplateCode: "tenant",
+func TestMessageConfigLoaderUsesTenantRecordDirectly(t *testing.T) {
+	loader := &MessageConfigLoader{
+		Store: &stubTenantMessageConfigStore{
+			item: &dao.TenantMessageConfig{
+				RealtimeEnabled:        false,
+				AggregateEnabled:       false,
+				AggregatePeriodMinutes: 15,
+				Channel: render.ChannelPolicy{
+					Channel:      "email",
+					TemplateCode: "tenant",
+				},
 			},
 		},
+		Default: func(context.Context, string) (json.RawMessage, error) {
+			return json.RawMessage(`{"realtime_enabled":true,"aggregate_enabled":true,"aggregate_period_minutes":30,"channel":{"channel":"sms","template_code":"base"}}`), nil
+		},
 	}
-	cfg, err := LoadEffectiveMessageConfig(context.Background(), "t_1", "m_1", func(context.Context, string) (json.RawMessage, error) {
-		return json.RawMessage(`{"realtime_enabled":true,"aggregate_enabled":true,"aggregate_period_minutes":30,"channel":{"channel":"sms","template_code":"base"}}`), nil
-	}, store)
+	cfg, err := loader.Load(context.Background(), "t_1", "m_1")
 	if err != nil {
-		t.Fatalf("LoadEffectiveMessageConfig failed: %v", err)
+		t.Fatalf("Load failed: %v", err)
 	}
 	if cfg == nil {
 		t.Fatal("expected config")
