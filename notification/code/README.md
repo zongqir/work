@@ -218,6 +218,7 @@ dispatcher := &dispatch.Dispatcher{
 
 - `contract/`：共享契约
 - `config/`：分发配置模型和配置缓存
+- `dao/`：平台持久化对象和接口，例如聚合上下文、水位
 - `render/`：生效策略和模板渲染
 - `delivery/`：消费侧策略加载、模板渲染、发送重试和记录
 - `publisher/`：消息发布实现

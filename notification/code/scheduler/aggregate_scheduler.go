@@ -8,21 +8,17 @@ import (
 
 	"work/notification/code/config"
 	"work/notification/code/contract"
+	"work/notification/code/dao"
 )
 
 type AggregateSender interface {
 	SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) (bool, error)
 }
 
-type AggregateWatermarkStore interface {
-	LastWindowEnd(ctx context.Context, tenantID, messageType string) (time.Time, error)
-	SaveWindowEnd(ctx context.Context, tenantID, messageType string, windowEnd time.Time) error
-}
-
 type AggregateScheduler struct {
 	LoadAll        func(ctx context.Context) (map[string]map[string]json.RawMessage, error)
 	Sender         AggregateSender
-	WatermarkStore AggregateWatermarkStore
+	WatermarkStore dao.AggregateWatermarkStore
 	LogError       func(ctx context.Context, msg string, err error)
 	PollInterval   time.Duration
 	Now            func() time.Time
