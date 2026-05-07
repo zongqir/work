@@ -1,35 +1,129 @@
 package contract
 
 import (
+	"context"
 	"fmt"
 )
 
-var registeredHandlers = map[string]Handler{}
+var registeredImplementations = map[string]Registration{}
 
-func MustRegister(handler Handler) {
-	if handler == nil {
-		panic(fmt.Errorf("%w: handler is required", ErrInvalidRequest))
+func MustRegister(spec MessageTypeSpec) {
+	if spec == nil {
+		panic(fmt.Errorf("%w: message type spec is required", ErrInvalidRequest))
 	}
 
-	messageType := handler.MessageType()
-	if messageType == "" {
-		panic(fmt.Errorf("%w: message_type is required", ErrInvalidRequest))
+	registration := Registration{
+		Spec: spec,
 	}
-	if _, exists := registeredHandlers[messageType]; exists {
-		panic(fmt.Errorf("%w: duplicate handler for %s", ErrInvalidRequest, messageType))
+	if realtime, ok := spec.(RealtimeEvaluator); ok {
+		registration.Realtime = realtime
+	}
+	if aggregate, ok := spec.(AggregateProvider); ok {
+		registration.Aggregate = aggregate
 	}
 
-	registeredHandlers[messageType] = handler
+	register(registration)
+}
+
+func MustRegisterImplementation(registration Registration) {
+	register(registration)
 }
 
 func Resolve(messageType string) (Handler, error) {
-	if messageType == "" {
-		return nil, fmt.Errorf("%w: message_type is required", ErrInvalidRequest)
+	registration, err := resolveRegistration(messageType)
+	if err != nil {
+		return nil, err
+	}
+	if registration.Realtime == nil || registration.Aggregate == nil {
+		return nil, fmt.Errorf("%w: full handler is not implemented for %s", ErrCapabilityNotImplemented, messageType)
 	}
 
-	handler, ok := registeredHandlers[messageType]
-	if !ok {
-		return nil, fmt.Errorf("%w: %s", ErrHandlerNotFound, messageType)
+	return resolvedHandler{
+		spec:      registration.Spec,
+		realtime:  registration.Realtime,
+		aggregate: registration.Aggregate,
+	}, nil
+}
+
+func ResolveSpec(messageType string) (MessageTypeSpec, error) {
+	registration, err := resolveRegistration(messageType)
+	if err != nil {
+		return nil, err
 	}
-	return handler, nil
+	return registration.Spec, nil
+}
+
+func ResolveRealtime(messageType string) (MessageTypeSpec, RealtimeEvaluator, error) {
+	registration, err := resolveRegistration(messageType)
+	if err != nil {
+		return nil, nil, err
+	}
+	if registration.Realtime == nil {
+		return nil, nil, fmt.Errorf("%w: realtime evaluator is not implemented for %s", ErrCapabilityNotImplemented, messageType)
+	}
+	return registration.Spec, registration.Realtime, nil
+}
+
+func ResolveAggregate(messageType string) (MessageTypeSpec, AggregateProvider, error) {
+	registration, err := resolveRegistration(messageType)
+	if err != nil {
+		return nil, nil, err
+	}
+	if registration.Aggregate == nil {
+		return nil, nil, fmt.Errorf("%w: aggregate provider is not implemented for %s", ErrCapabilityNotImplemented, messageType)
+	}
+	return registration.Spec, registration.Aggregate, nil
+}
+
+type resolvedHandler struct {
+	spec      MessageTypeSpec
+	realtime  RealtimeEvaluator
+	aggregate AggregateProvider
+}
+
+func (h resolvedHandler) MessageType() string {
+	return h.spec.MessageType()
+}
+
+func (h resolvedHandler) NewFilter() any {
+	return h.spec.NewFilter()
+}
+
+func (h resolvedHandler) Evaluate(ctx context.Context, req *RealtimeRequest) (*RealtimeResult, error) {
+	return h.realtime.Evaluate(ctx, req)
+}
+
+func (h resolvedHandler) Aggregate(ctx context.Context, req *BizAggregateRequest) (*BizAggregateResult, error) {
+	return h.aggregate.Aggregate(ctx, req)
+}
+
+func register(registration Registration) {
+	if registration.Spec == nil {
+		panic(fmt.Errorf("%w: message type spec is required", ErrInvalidRequest))
+	}
+	if registration.Realtime == nil && registration.Aggregate == nil {
+		panic(fmt.Errorf("%w: at least one capability is required", ErrInvalidRequest))
+	}
+
+	messageType := registration.Spec.MessageType()
+	if messageType == "" {
+		panic(fmt.Errorf("%w: message_type is required", ErrInvalidRequest))
+	}
+	if _, exists := registeredImplementations[messageType]; exists {
+		panic(fmt.Errorf("%w: duplicate handler for %s", ErrInvalidRequest, messageType))
+	}
+
+	registeredImplementations[messageType] = registration
+}
+
+func resolveRegistration(messageType string) (Registration, error) {
+	if messageType == "" {
+		return Registration{}, fmt.Errorf("%w: message_type is required", ErrInvalidRequest)
+	}
+
+	registration, ok := registeredImplementations[messageType]
+	if !ok {
+		return Registration{}, fmt.Errorf("%w: %s", ErrHandlerNotFound, messageType)
+	}
+	return registration, nil
 }

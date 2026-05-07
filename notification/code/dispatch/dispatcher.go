@@ -32,19 +32,19 @@ type Dispatcher struct {
 }
 
 func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) error {
-	handler, cfg, err := d.prepare(ctx, tenantID, messageType)
+	spec, aggregate, cfg, err := d.prepareAggregate(ctx, tenantID, messageType)
 	if err != nil {
 		return err
 	}
 	if cfg == nil || !cfg.AggregateEnabled {
 		return nil
 	}
-	filter, err := parseHandlerPayload(handler, handler.NewFilter(), cfg.Filter)
+	filter, err := parseHandlerPayload(spec, spec.NewFilter(), cfg.Filter)
 	if err != nil {
 		return err
 	}
 
-	aggregateResult, err := handler.Aggregate(ctx, &contract.BizAggregateRequest{
+	aggregateResult, err := aggregate.Aggregate(ctx, &contract.BizAggregateRequest{
 		TenantID:    tenantID,
 		WindowStart: windowStart,
 		WindowEnd:   windowEnd,
@@ -68,9 +68,9 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 	}
 
 	err = d.Publisher.Publish(ctx, &contract.DispatchMessage{
-		IdempotencyKey: buildAggregateIdempotencyKey(tenantID, handler.MessageType(), windowStart, windowEnd),
+		IdempotencyKey: buildAggregateIdempotencyKey(tenantID, spec.MessageType(), windowStart, windowEnd),
 		TenantID:       tenantID,
-		MessageType:    handler.MessageType(),
+		MessageType:    spec.MessageType(),
 		Source:         contract.DispatchSourceAggregate,
 		RetryCount:     0,
 		CreatedAt:      createdAt,
@@ -84,14 +84,14 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 }
 
 func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType string, event any) error {
-	handler, cfg, err := d.prepare(ctx, tenantID, messageType)
+	spec, realtime, cfg, err := d.prepareRealtime(ctx, tenantID, messageType)
 	if err != nil {
 		return err
 	}
 	if cfg == nil || !cfg.RealtimeEnabled {
 		return nil
 	}
-	filter, err := parseHandlerPayload(handler, handler.NewFilter(), cfg.Filter)
+	filter, err := parseHandlerPayload(spec, spec.NewFilter(), cfg.Filter)
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 		Event:    event,
 	}
 
-	realtimeResult, err := handler.Evaluate(ctx, realtimeReq)
+	realtimeResult, err := realtime.Evaluate(ctx, realtimeReq)
 	if err != nil {
 		return err
 	}
@@ -126,9 +126,9 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 	}
 
 	err = d.Publisher.Publish(ctx, &contract.DispatchMessage{
-		IdempotencyKey: buildRealtimeIdempotencyKey(tenantID, handler.MessageType(), realtimeResult.IdempotencyKey),
+		IdempotencyKey: buildRealtimeIdempotencyKey(tenantID, spec.MessageType(), realtimeResult.IdempotencyKey),
 		TenantID:       tenantID,
-		MessageType:    handler.MessageType(),
+		MessageType:    spec.MessageType(),
 		Source:         contract.DispatchSourceRealtime,
 		RetryCount:     0,
 		CreatedAt:      createdAt,
@@ -139,40 +139,61 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 	return err
 }
 
-func (d *Dispatcher) prepare(ctx context.Context, tenantID, messageType string) (contract.Handler, *config.MessageConfig, error) {
+func (d *Dispatcher) prepareRealtime(ctx context.Context, tenantID, messageType string) (contract.MessageTypeSpec, contract.RealtimeEvaluator, *config.MessageConfig, error) {
+	spec, realtime, err := contract.ResolveRealtime(messageType)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	cfg, err := d.loadConfig(ctx, tenantID, messageType)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return spec, realtime, cfg, nil
+}
+
+func (d *Dispatcher) prepareAggregate(ctx context.Context, tenantID, messageType string) (contract.MessageTypeSpec, contract.AggregateProvider, *config.MessageConfig, error) {
+	spec, aggregate, err := contract.ResolveAggregate(messageType)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	cfg, err := d.loadConfig(ctx, tenantID, messageType)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return spec, aggregate, cfg, nil
+}
+
+func (d *Dispatcher) loadConfig(ctx context.Context, tenantID, messageType string) (*config.MessageConfig, error) {
 	if d == nil || d.Publisher == nil {
-		return nil, nil, fmt.Errorf("%w: message publisher is required", contract.ErrInvalidRequest)
+		return nil, fmt.Errorf("%w: message publisher is required", contract.ErrInvalidRequest)
 	}
 	if d.LoadAll == nil {
-		return nil, nil, fmt.Errorf("%w: load_all is required", contract.ErrInvalidRequest)
+		return nil, fmt.Errorf("%w: load_all is required", contract.ErrInvalidRequest)
 	}
 
 	if tenantID == "" {
-		return nil, nil, fmt.Errorf("%w: tenant_id is required", contract.ErrInvalidRequest)
+		return nil, fmt.Errorf("%w: tenant_id is required", contract.ErrInvalidRequest)
 	}
 	if messageType == "" {
-		return nil, nil, fmt.Errorf("%w: message_type is required", contract.ErrInvalidRequest)
-	}
-
-	handler, err := contract.Resolve(messageType)
-	if err != nil {
-		return nil, nil, err
+		return nil, fmt.Errorf("%w: message_type is required", contract.ErrInvalidRequest)
 	}
 
 	d.ensureCache()
 	configBody, err := d.cache.Pick(ctx, tenantID, messageType, d.LoadAll, d.LogError)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if len(configBody) == 0 {
-		return handler, nil, nil
+		return nil, nil
 	}
 
 	var cfg config.MessageConfig
 	if err := json.Unmarshal(configBody, &cfg); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return handler, &cfg, nil
+	return &cfg, nil
 }
 
 func (d *Dispatcher) ensureCache() {
@@ -185,7 +206,7 @@ func (d *Dispatcher) ensureCache() {
 	})
 }
 
-func parseHandlerPayload(handler contract.Handler, target any, raw json.RawMessage) (any, error) {
+func parseHandlerPayload(spec contract.MessageTypeSpec, target any, raw json.RawMessage) (any, error) {
 	if target == nil {
 		return nil, nil
 	}
@@ -193,7 +214,7 @@ func parseHandlerPayload(handler contract.Handler, target any, raw json.RawMessa
 		return target, nil
 	}
 	if err := json.Unmarshal(raw, target); err != nil {
-		return nil, fmt.Errorf("%w: parse filter for %s: %v", contract.ErrInvalidRequest, handler.MessageType(), err)
+		return nil, fmt.Errorf("%w: parse filter for %s: %v", contract.ErrInvalidRequest, spec.MessageType(), err)
 	}
 	return target, nil
 }

@@ -7,10 +7,11 @@ import (
 )
 
 var (
-	ErrInvalidRequest    = errors.New("invalid request")
-	ErrUnsupportedConfig = errors.New("unsupported config")
-	ErrTemporaryFailure  = errors.New("temporary failure")
-	ErrHandlerNotFound   = errors.New("handler not found")
+	ErrInvalidRequest           = errors.New("invalid request")
+	ErrUnsupportedConfig        = errors.New("unsupported config")
+	ErrTemporaryFailure         = errors.New("temporary failure")
+	ErrHandlerNotFound          = errors.New("handler not found")
+	ErrCapabilityNotImplemented = errors.New("capability not implemented")
 )
 
 type DispatchMessage struct {
@@ -32,10 +33,28 @@ const (
 	DispatchSourceRealtime  = "realtime"
 )
 
-// Handler 是业务侧需要实现的最小生产契约。
-type Handler interface {
+type MessageTypeSpec interface {
 	MessageType() string
 	NewFilter() any
-	Aggregate(ctx context.Context, req *BizAggregateRequest) (*BizAggregateResult, error)
+}
+
+type RealtimeEvaluator interface {
 	Evaluate(ctx context.Context, req *RealtimeRequest) (*RealtimeResult, error)
+}
+
+type AggregateProvider interface {
+	Aggregate(ctx context.Context, req *BizAggregateRequest) (*BizAggregateResult, error)
+}
+
+// Handler 是同时支持实时和聚合的兼容契约。
+type Handler interface {
+	MessageTypeSpec
+	RealtimeEvaluator
+	AggregateProvider
+}
+
+type Registration struct {
+	Spec      MessageTypeSpec
+	Realtime  RealtimeEvaluator
+	Aggregate AggregateProvider
 }

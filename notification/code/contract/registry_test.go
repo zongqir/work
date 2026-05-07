@@ -9,7 +9,7 @@ import (
 type stubHandler struct{}
 
 func resetRegistryForTest() {
-	registeredHandlers = map[string]Handler{}
+	registeredImplementations = map[string]Registration{}
 }
 
 func (stubHandler) MessageType() string { return "stub" }
@@ -19,6 +19,17 @@ func (stubHandler) Aggregate(_ context.Context, _ *BizAggregateRequest) (*BizAgg
 }
 func (stubHandler) Evaluate(_ context.Context, _ *RealtimeRequest) (*RealtimeResult, error) {
 	return &RealtimeResult{Matched: false, IdempotencyKey: ""}, nil
+}
+
+type stubSpec string
+
+func (s stubSpec) MessageType() string { return string(s) }
+func (s stubSpec) NewFilter() any      { return nil }
+
+type stubRealtimeOnly struct{}
+
+func (stubRealtimeOnly) Evaluate(_ context.Context, _ *RealtimeRequest) (*RealtimeResult, error) {
+	return &RealtimeResult{Matched: true, IdempotencyKey: "biz"}, nil
 }
 
 func TestResolveNotFound(t *testing.T) {
@@ -63,6 +74,31 @@ func TestMustRegisterRejectsDuplicate(t *testing.T) {
 	MustRegister(stubHandlerWithType("stub_dup"))
 }
 
+func TestMustRegisterImplementationSharesSpec(t *testing.T) {
+	resetRegistryForTest()
+
+	spec := stubSpec("realtime_only")
+	MustRegisterImplementation(Registration{
+		Spec:     spec,
+		Realtime: stubRealtimeOnly{},
+	})
+
+	resolvedSpec, realtime, err := ResolveRealtime("realtime_only")
+	if err != nil {
+		t.Fatalf("ResolveRealtime failed: %v", err)
+	}
+	if resolvedSpec.MessageType() != "realtime_only" {
+		t.Fatalf("unexpected message type: %s", resolvedSpec.MessageType())
+	}
+	if realtime == nil {
+		t.Fatal("expected realtime evaluator")
+	}
+
+	if _, _, err := ResolveAggregate("realtime_only"); !errors.Is(err, ErrCapabilityNotImplemented) {
+		t.Fatalf("expected ErrCapabilityNotImplemented, got %v", err)
+	}
+}
+
 type stubHandlerWithType string
 
 func (s stubHandlerWithType) MessageType() string { return string(s) }
@@ -70,6 +106,6 @@ func (s stubHandlerWithType) NewFilter() any      { return nil }
 func (s stubHandlerWithType) Aggregate(_ context.Context, _ *BizAggregateRequest) (*BizAggregateResult, error) {
 	return &BizAggregateResult{BizVars: TemplateVars{}}, nil
 }
-func (s stubHandlerWithType) Evaluate(_ context.Context, req *RealtimeRequest) (*RealtimeResult, error) {
+func (s stubHandlerWithType) Evaluate(_ context.Context, _ *RealtimeRequest) (*RealtimeResult, error) {
 	return &RealtimeResult{Matched: true, IdempotencyKey: "biz"}, nil
 }
