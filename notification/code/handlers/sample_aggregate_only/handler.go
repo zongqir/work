@@ -1,4 +1,4 @@
-package exampleaggregateonly
+package sampleaggregateonly
 
 import (
 	"context"
@@ -22,7 +22,7 @@ func init() {
 }
 
 func (h *Handler) MessageType() string {
-	return "example_aggregate_only"
+	return "sample_aggregate_only"
 }
 
 func (h *Handler) NewFilter() any {

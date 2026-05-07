@@ -1,4 +1,4 @@
-package examplerealtimeonly
+package samplerealtimeonly
 
 import (
 	"context"

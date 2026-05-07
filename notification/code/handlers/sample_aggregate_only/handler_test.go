@@ -1,4 +1,4 @@
-package exampleaggregateonly
+package sampleaggregateonly
 
 import (
 	"context"

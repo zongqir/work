@@ -1,4 +1,4 @@
-package xdrriskdigest
+package sampleboth
 
 import (
 	"context"

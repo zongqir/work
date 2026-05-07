@@ -1,4 +1,4 @@
-package xdrriskdigest
+package sampleboth
 
 import (
 	"context"
@@ -22,7 +22,7 @@ func init() {
 }
 
 func (h *Handler) MessageType() string {
-	return "xdr_risk_digest"
+	return "sample_both"
 }
 
 func (h *Handler) NewFilter() any {

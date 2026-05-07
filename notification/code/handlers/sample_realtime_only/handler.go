@@ -1,4 +1,4 @@
-package examplerealtimeonly
+package samplerealtimeonly
 
 import (
 	"context"
@@ -27,7 +27,7 @@ func init() {
 }
 
 func (h *Handler) MessageType() string {
-	return "example_realtime_only"
+	return "sample_realtime_only"
 }
 
 func (h *Handler) NewFilter() any {
