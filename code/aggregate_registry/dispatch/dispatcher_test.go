@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"notes/code/aggregate_registry_demo/contract"
+	"notes/code/aggregate_registry/contract"
 )
 
 type stubPublisher struct {
@@ -274,3 +274,4 @@ func TestSendRealtimeRejectsInvalidEvent(t *testing.T) {
 		t.Fatal("did not expect message to be published")
 	}
 }
+

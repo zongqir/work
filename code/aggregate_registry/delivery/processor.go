@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"notes/code/aggregate_registry_demo/contract"
+	"notes/code/aggregate_registry/contract"
 )
 
 type Sender interface {
@@ -126,3 +126,4 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 		UpdatedAt:       current,
 	})
 }
+

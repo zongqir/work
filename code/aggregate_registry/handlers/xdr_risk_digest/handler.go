@@ -3,7 +3,7 @@ package xdrriskdigest
 import (
 	"context"
 
-	"notes/code/aggregate_registry_demo/contract"
+	"notes/code/aggregate_registry/contract"
 )
 
 type Handler struct{}
@@ -59,3 +59,4 @@ func (h *Handler) Evaluate(_ context.Context, req *contract.RealtimeRequest) (*c
 		},
 	}, nil
 }
+

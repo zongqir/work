@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"os"
 
-	"notes/code/aggregate_registry_demo/contract"
-	"notes/code/aggregate_registry_demo/render"
+	"notes/code/aggregate_registry/contract"
+	"notes/code/aggregate_registry/render"
 )
 
 type Result struct {
@@ -87,3 +87,4 @@ func loadPolicy(path string) (*render.EffectivePolicy, error) {
 	}
 	return &policy, nil
 }
+

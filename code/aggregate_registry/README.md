@@ -1,6 +1,6 @@
-# Aggregate Contract Demo
+# Aggregate Registry
 
-这个版本演示的是生产级聚合契约：
+这个版本是生产级聚合契约实现：
 
 - AES 定义聚合请求和返回协议
 - 业务方实现 `Handler` 接口
@@ -74,7 +74,7 @@
 - `email` 和 `webhook` 走本地模板资产
 - `sms` 直接使用 `templateCode + kv`
 
-生产级契约入口见 [contract.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/contract/contract.go:1) 和 [types.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/contract/types.go:1)：
+生产级契约入口见 [contract.go](/C:/Users/Administrator/code/notes/code/aggregate_registry/contract/contract.go:1) 和 [types.go](/C:/Users/Administrator/code/notes/code/aggregate_registry/contract/types.go:1)：
 
 - `Handler`：业务方必须实现的最小接口
 - `MessageType()`：业务方自己定义消息标识
@@ -91,9 +91,11 @@
 - `ErrTemporaryFailure`：临时失败，可由调用方决定是否重试
 - `ErrHandlerNotFound`：运行时没有找到对应 `message_type` 的实现
 
-统一分发入口见 [dispatcher.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/dispatch/dispatcher.go:1)。
+统一分发入口见 [dispatcher.go](/C:/Users/Administrator/code/notes/code/aggregate_registry/dispatch/dispatcher.go:1)。
 
-默认启动入口见 [bootstrap.go](/C:/Users/Administrator/code/notes/code/aggregate_registry_demo/bootstrap/bootstrap.go:1)。
+默认启动入口见 [bootstrap.go](/C:/Users/Administrator/code/notes/code/aggregate_registry/bootstrap/bootstrap.go:1)。
+
+最小消费者入口见 [pulsar.go](/C:/Users/Administrator/code/notes/code/aggregate_registry/consumer/pulsar.go:1)。
 
 简单模式接入时，外部不需要自己构建 `Publisher`，只需要准备：
 
@@ -215,6 +217,7 @@ dispatcher := &dispatch.Dispatcher{
 - `config/`：分发配置模型和配置缓存
 - `render/`：生效策略和模板渲染
 - `publisher/`：消息发布实现
+- `consumer/`：Pulsar 消费和 `Processor.Process(...)` 接线
 - `dispatch/`：配置驱动的消息分发
 - `scheduler/`：聚合定时调度
 
@@ -226,7 +229,7 @@ dispatcher := &dispatch.Dispatcher{
 当前目录结构：
 
 ```text
-code/aggregate_registry_demo/
+code/aggregate_registry/
   bootstrap/
     bootstrap.go
   config/
@@ -240,6 +243,9 @@ code/aggregate_registry_demo/
   delivery/
     processor.go
     processor_test.go
+  consumer/
+    pulsar.go
+    pulsar_test.go
   dispatch/
     dispatcher.go
     dispatcher_test.go
@@ -274,7 +280,7 @@ code/aggregate_registry_demo/
 最轻的预览方式是复用 `preview/` 子目录里的辅助函数，或者直接跑那里的测试：
 
 ```powershell
-cd .\code\aggregate_registry_demo
+cd .\code\aggregate_registry
 go test .\preview
 ```
 
@@ -295,3 +301,4 @@ preview, err := preview.FromFiles(
 ```go
 data, err := json.MarshalIndent(preview, "", "  ")
 ```
+

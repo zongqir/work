@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"notes/code/aggregate_registry_demo/config"
-	"notes/code/aggregate_registry_demo/contract"
+	"notes/code/aggregate_registry/config"
+	"notes/code/aggregate_registry/contract"
 )
 
 type AggregateSender interface {
@@ -148,3 +148,4 @@ func truncateToPeriod(value time.Time, period time.Duration) time.Time {
 	}
 	return value.Truncate(period)
 }
+

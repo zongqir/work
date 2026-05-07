@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"notes/code/aggregate_registry_demo/contract"
+	"notes/code/aggregate_registry/contract"
 )
 
 type stubSender struct {
@@ -255,3 +255,4 @@ func newMessage(createdAt time.Time) *contract.DispatchMessage {
 		},
 	}
 }
+

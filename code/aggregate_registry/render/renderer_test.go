@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"notes/code/aggregate_registry_demo/contract"
+	"notes/code/aggregate_registry/contract"
 )
 
 func TestBuildTemplateContextRejectsNil(t *testing.T) {
@@ -69,3 +69,4 @@ func TestRenderByPolicyRejectsEscapingTemplatePath(t *testing.T) {
 		t.Fatalf("expected ErrInvalidRequest for escaping template path, got %v", err)
 	}
 }
+

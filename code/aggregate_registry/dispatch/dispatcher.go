@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"notes/code/aggregate_registry_demo/config"
-	"notes/code/aggregate_registry_demo/contract"
+	"notes/code/aggregate_registry/config"
+	"notes/code/aggregate_registry/contract"
 )
 
 // MessagePublisher 由平台提供，负责把命中的实时结果发布出去。
@@ -207,3 +207,4 @@ func buildAggregateIdempotencyKey(tenantID, messageType string, windowStart, win
 func buildRealtimeIdempotencyKey(tenantID, messageType, bizKey string) string {
 	return fmt.Sprintf("realtime:%s:%s:%s", tenantID, messageType, bizKey)
 }
+

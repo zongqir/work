@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"notes/code/aggregate_registry_demo/contract"
+	"notes/code/aggregate_registry/contract"
 )
 
 func TestHandlerAggregate(t *testing.T) {
@@ -38,3 +38,4 @@ func TestHandlerEvaluate(t *testing.T) {
 		t.Fatalf("expected idempotency key evt-1, got %s", decision.IdempotencyKey)
 	}
 }
+

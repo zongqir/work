@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/apache/pulsar-client-go/pulsar"
-	"notes/code/aggregate_registry_demo/contract"
+	"notes/code/aggregate_registry/contract"
 )
 
 type PulsarPublisher struct {
@@ -88,3 +88,4 @@ func (p *PulsarPublisher) getProducer() (pulsar.Producer, error) {
 	p.producer = producer
 	return p.producer, nil
 }
+

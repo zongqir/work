@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"notes/code/aggregate_registry_demo/contract"
+	"notes/code/aggregate_registry/contract"
 )
 
 type RenderedChannelMessage struct {
@@ -192,3 +192,4 @@ func formatWindowLabel(start, end time.Time) string {
 		return fmt.Sprintf("%s - %s", start.Format("2006-01-02 15:04"), end.Format("15:04"))
 	}
 }
+
