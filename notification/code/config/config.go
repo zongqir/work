@@ -32,7 +32,9 @@ func ParseMessageConfig(raw json.RawMessage) (*MessageConfig, error) {
 func LoadMessageConfig(
 	ctx context.Context,
 	tenantID, messageType string,
+	cache *Cache,
 	loadAll func(context.Context) (map[string]map[string]json.RawMessage, error),
+	logError func(context.Context, string, error),
 ) (*MessageConfig, error) {
 	if loadAll == nil {
 		return nil, fmt.Errorf("%w: load_all is required", contract.ErrInvalidRequest)
@@ -44,33 +46,17 @@ func LoadMessageConfig(
 		return nil, fmt.Errorf("%w: message_type is required", contract.ErrInvalidRequest)
 	}
 
-	all, err := loadAll(ctx)
-	if err != nil {
-		return nil, err
+	var raw json.RawMessage
+	var err error
+	if cache != nil {
+		raw, err = cache.Pick(ctx, tenantID, messageType, loadAll, logError)
+	} else {
+		var all map[string]map[string]json.RawMessage
+		all, err = loadAll(ctx)
+		if err == nil {
+			raw = all[tenantID][messageType]
+		}
 	}
-
-	raw := all[tenantID][messageType]
-	return ParseMessageConfig(raw)
-}
-
-func LoadCachedMessageConfig(
-	ctx context.Context,
-	tenantID, messageType string,
-	cache *Cache,
-	loadAll func(context.Context) (map[string]map[string]json.RawMessage, error),
-	logError func(context.Context, string, error),
-) (*MessageConfig, error) {
-	if cache == nil {
-		return LoadMessageConfig(ctx, tenantID, messageType, loadAll)
-	}
-	if tenantID == "" {
-		return nil, fmt.Errorf("%w: tenant_id is required", contract.ErrInvalidRequest)
-	}
-	if messageType == "" {
-		return nil, fmt.Errorf("%w: message_type is required", contract.ErrInvalidRequest)
-	}
-
-	raw, err := cache.Pick(ctx, tenantID, messageType, loadAll, logError)
 	if err != nil {
 		return nil, err
 	}

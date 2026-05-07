@@ -47,7 +47,7 @@ func buildRequest(cfg render.ChannelPolicy, rendered render.RenderedChannelMessa
 	if rendered.SMS == nil {
 		return nil, fmt.Errorf("%w: rendered sms is required", contract.ErrInvalidRequest)
 	}
-	if cfg.ResolvedTemplateKey() == "" {
+	if cfg.TemplateKey == "" {
 		return nil, fmt.Errorf("%w: sms template key is required", contract.ErrInvalidRequest)
 	}
 	if len(cfg.Audience.Recipients) == 0 {
@@ -66,7 +66,7 @@ func buildRequest(cfg render.ChannelPolicy, rendered render.RenderedChannelMessa
 	}
 
 	return &request{
-		TemplateKey:    cfg.ResolvedTemplateKey(),
+		TemplateKey:    cfg.TemplateKey,
 		Recipients:     append([]string(nil), cfg.Audience.Recipients...),
 		TemplateParams: params,
 		Platform:       cfg.Delivery.Platform,

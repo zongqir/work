@@ -103,7 +103,7 @@ func Render(input RenderInput, policy *EffectivePolicy, templateRoot string) ([]
 func renderChannel(context map[string]contract.TemplateVars, policy ChannelPolicy, templateRoot string) (RenderedChannelMessage, error) {
 	switch policy.Channel {
 	case "email":
-		templateCode := policy.ResolvedTemplateCode()
+		templateCode := policy.TemplateCode
 		subjectPath, err := templatePath(templateRoot, "email", templateCode+".subject.tmpl")
 		if err != nil {
 			return RenderedChannelMessage{}, err
@@ -128,7 +128,7 @@ func renderChannel(context map[string]contract.TemplateVars, policy ChannelPolic
 			},
 		}, nil
 	case "webhook":
-		contentPath, err := templatePath(templateRoot, "webhook", policy.ResolvedTemplateCode()+".tmpl")
+		contentPath, err := templatePath(templateRoot, "webhook", policy.TemplateCode+".tmpl")
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
@@ -150,7 +150,7 @@ func renderChannel(context map[string]contract.TemplateVars, policy ChannelPolic
 			},
 		}, nil
 	case "wecom":
-		contentPath, err := templatePath(templateRoot, "wecom", policy.ResolvedTemplateCode()+".tmpl")
+		contentPath, err := templatePath(templateRoot, "wecom", policy.TemplateCode+".tmpl")
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}

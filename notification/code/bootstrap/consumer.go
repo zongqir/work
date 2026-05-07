@@ -75,7 +75,7 @@ func NewConsumer(config ConsumerConfig) (*ConsumerService, error) {
 
 	processor := &delivery.Processor{
 		LoadConfig: func(ctx context.Context, tenantID, messageType string) (*configpkg.MessageConfig, error) {
-			return configpkg.LoadCachedMessageConfig(ctx, tenantID, messageType, cache, config.LoadAll, config.LogError)
+			return configpkg.LoadMessageConfig(ctx, tenantID, messageType, cache, config.LoadAll, config.LogError)
 		},
 		TemplateRoot: config.TemplateRoot,
 		Senders:      channels.NewSenders(config.HTTPClient, config.DeliveryBaseURL),

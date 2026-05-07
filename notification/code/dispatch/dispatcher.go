@@ -192,7 +192,7 @@ func (d *Dispatcher) loadConfig(ctx context.Context, tenantID, messageType strin
 	}
 
 	d.ensureCache()
-	return config.LoadCachedMessageConfig(ctx, tenantID, messageType, &d.cache, d.LoadAll, d.LogError)
+	return config.LoadMessageConfig(ctx, tenantID, messageType, &d.cache, d.LoadAll, d.LogError)
 }
 
 func (d *Dispatcher) ensureCache() {

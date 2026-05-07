@@ -7,13 +7,13 @@ import (
 )
 
 func TestLoadMessageConfig(t *testing.T) {
-	cfg, err := LoadMessageConfig(context.Background(), "t_1", "m_1", func(context.Context) (map[string]map[string]json.RawMessage, error) {
+	cfg, err := LoadMessageConfig(context.Background(), "t_1", "m_1", nil, func(context.Context) (map[string]map[string]json.RawMessage, error) {
 		return map[string]map[string]json.RawMessage{
 			"t_1": {
 				"m_1": json.RawMessage(`{"channels":[{"channel":"sms","template_code":"SMS_001"}]}`),
 			},
 		}, nil
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("LoadMessageConfig failed: %v", err)
 	}

@@ -12,7 +12,7 @@
     },
     {
       "channel": "sms",
-      "template_code": "SMS_001"
+      "template_key": "SMS_001"
     }
   ]
 }

@@ -315,10 +315,8 @@ func smsConfig() *config.MessageConfig {
 	return &config.MessageConfig{
 		Channels: []render.ChannelPolicy{
 			{
-				Channel: "sms",
-				Template: render.TemplateConfig{
-					TemplateKey: "commonTemplate",
-				},
+				Channel:     "sms",
+				TemplateKey: "commonTemplate",
 				Audience: render.AudienceConfig{
 					Recipients: []string{"13111223344"},
 				},

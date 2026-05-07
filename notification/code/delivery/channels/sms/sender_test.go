@@ -25,9 +25,7 @@ func TestSenderSend(t *testing.T) {
 
 	sender := NewSender(server.Client(), server.URL)
 	err := sender.Send(context.Background(), nil, render.ChannelPolicy{
-		Template: render.TemplateConfig{
-			TemplateKey: "commonTemplate",
-		},
+		TemplateKey: "commonTemplate",
 		Audience: render.AudienceConfig{
 			Recipients: []string{"13111223344"},
 		},
