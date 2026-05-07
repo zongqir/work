@@ -15,6 +15,7 @@ type RenderedChannelMessage struct {
 	Email   *RenderedEmail   `json:"email,omitempty"`
 	Webhook *RenderedWebhook `json:"webhook,omitempty"`
 	SMS     *RenderedSMS     `json:"sms,omitempty"`
+	WeCom   *RenderedWeCom   `json:"wecom,omitempty"`
 }
 
 type RenderedEmail struct {
@@ -27,8 +28,16 @@ type RenderedWebhook struct {
 }
 
 type RenderedSMS struct {
-	TemplateCode string            `json:"template_code"`
-	Params       map[string]string `json:"params"`
+	TemplateParams []RenderedParam `json:"template_params"`
+}
+
+type RenderedWeCom struct {
+	Text string `json:"text"`
+}
+
+type RenderedParam struct {
+	ParamName  string `json:"param_name"`
+	ParamValue string `json:"param_value"`
 }
 
 func BuildTemplateContext(req *contract.BizAggregateRequest, result *contract.BizAggregateResult) (map[string]contract.TemplateVars, error) {
@@ -138,7 +147,8 @@ func RenderDispatch(msg *contract.DispatchMessage, policy *EffectivePolicy, temp
 func renderChannel(context map[string]contract.TemplateVars, policy ChannelPolicy, templateRoot string) (RenderedChannelMessage, error) {
 	switch policy.Channel {
 	case "email":
-		subjectPath, err := templatePath(templateRoot, "email", policy.TemplateCode+".subject.tmpl")
+		templateCode := policy.ResolvedTemplateCode()
+		subjectPath, err := templatePath(templateRoot, "email", templateCode+".subject.tmpl")
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
@@ -146,7 +156,7 @@ func renderChannel(context map[string]contract.TemplateVars, policy ChannelPolic
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
-		bodyPath, err := templatePath(templateRoot, "email", policy.TemplateCode+".body.tmpl")
+		bodyPath, err := templatePath(templateRoot, "email", templateCode+".body.tmpl")
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
@@ -162,7 +172,7 @@ func renderChannel(context map[string]contract.TemplateVars, policy ChannelPolic
 			},
 		}, nil
 	case "webhook":
-		contentPath, err := templatePath(templateRoot, "webhook", policy.TemplateCode+".tmpl")
+		contentPath, err := templatePath(templateRoot, "webhook", policy.ResolvedTemplateCode()+".tmpl")
 		if err != nil {
 			return RenderedChannelMessage{}, err
 		}
@@ -180,8 +190,22 @@ func renderChannel(context map[string]contract.TemplateVars, policy ChannelPolic
 		return RenderedChannelMessage{
 			Channel: "sms",
 			SMS: &RenderedSMS{
-				TemplateCode: policy.TemplateCode,
-				Params:       buildSMSParams(context),
+				TemplateParams: buildSMSParams(context),
+			},
+		}, nil
+	case "wecom":
+		contentPath, err := templatePath(templateRoot, "wecom", policy.ResolvedTemplateCode()+".tmpl")
+		if err != nil {
+			return RenderedChannelMessage{}, err
+		}
+		text, err := renderTextTemplate(contentPath, context)
+		if err != nil {
+			return RenderedChannelMessage{}, err
+		}
+		return RenderedChannelMessage{
+			Channel: "wecom",
+			WeCom: &RenderedWeCom{
+				Text: text,
 			},
 		}, nil
 	default:
@@ -206,13 +230,19 @@ func templatePath(templateRoot, channelDir, templateName string) (string, error)
 	return fullPath, nil
 }
 
-func buildSMSParams(context map[string]contract.TemplateVars) map[string]string {
-	params := make(map[string]string)
+func buildSMSParams(context map[string]contract.TemplateVars) []RenderedParam {
+	params := make([]RenderedParam, 0, len(context["biz"])+len(context["sys"]))
 	for key, value := range context["biz"] {
-		params[key] = fmt.Sprint(value)
+		params = append(params, RenderedParam{
+			ParamName:  key,
+			ParamValue: fmt.Sprint(value),
+		})
 	}
 	for key, value := range context["sys"] {
-		params[key] = fmt.Sprint(value)
+		params = append(params, RenderedParam{
+			ParamName:  key,
+			ParamValue: fmt.Sprint(value),
+		})
 	}
 	return params
 }

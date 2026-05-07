@@ -10,8 +10,8 @@ import (
 	"work/notification/code/render"
 )
 
-type Sender interface {
-	Send(ctx context.Context, msg *contract.DispatchMessage, channel render.RenderedChannelMessage) error
+type ChannelSender interface {
+	Send(ctx context.Context, msg *contract.DispatchMessage, cfg render.ChannelPolicy, rendered render.RenderedChannelMessage) error
 }
 
 type Publisher interface {
@@ -41,7 +41,7 @@ type SendRecord struct {
 type Processor struct {
 	LoadConfig   func(ctx context.Context, tenantID, messageType string) (*config.MessageConfig, error)
 	TemplateRoot string
-	Sender       Sender
+	Senders      map[string]ChannelSender
 	Publisher    Publisher
 	Recorder     Recorder
 	RetryDelay   time.Duration
@@ -50,8 +50,8 @@ type Processor struct {
 }
 
 func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) error {
-	if p == nil || p.Sender == nil {
-		return fmt.Errorf("%w: sender is required", contract.ErrInvalidRequest)
+	if p == nil || len(p.Senders) == 0 {
+		return fmt.Errorf("%w: senders are required", contract.ErrInvalidRequest)
 	}
 	if p.LoadConfig == nil {
 		return fmt.Errorf("%w: load_config is required", contract.ErrInvalidRequest)
@@ -119,8 +119,13 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 	if err != nil {
 		return err
 	}
-	for _, channel := range renderedMessages {
-		if err := p.Sender.Send(ctx, msg, channel); err != nil {
+	for idx, channel := range renderedMessages {
+		channelCfg := cfg.Channels[idx]
+		sender, ok := p.Senders[channel.Channel]
+		if !ok {
+			return fmt.Errorf("%w: unsupported channel sender: %s", contract.ErrUnsupportedConfig, channel.Channel)
+		}
+		if err := sender.Send(ctx, msg, channelCfg, channel); err != nil {
 			maxRetry := p.MaxRetry
 			if maxRetry <= 0 {
 				maxRetry = DefaultMaxRetry

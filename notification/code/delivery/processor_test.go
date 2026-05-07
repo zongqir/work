@@ -15,11 +15,13 @@ import (
 type stubSender struct {
 	err     error
 	msg     *contract.DispatchMessage
+	cfg     *render.ChannelPolicy
 	channel *render.RenderedChannelMessage
 }
 
-func (s *stubSender) Send(_ context.Context, msg *contract.DispatchMessage, channel render.RenderedChannelMessage) error {
+func (s *stubSender) Send(_ context.Context, msg *contract.DispatchMessage, cfg render.ChannelPolicy, channel render.RenderedChannelMessage) error {
 	s.msg = msg
+	s.cfg = &cfg
 	s.channel = &channel
 	return s.err
 }
@@ -51,8 +53,10 @@ func TestProcessSuccess(t *testing.T) {
 			return smsConfig(), nil
 		},
 		TemplateRoot: filepath.Join("..", "templates"),
-		Sender:       sender,
-		Recorder:     recorder,
+		Senders: map[string]ChannelSender{
+			"sms": sender,
+		},
+		Recorder: recorder,
 		Now: func() time.Time {
 			return now
 		},
@@ -67,6 +71,9 @@ func TestProcessSuccess(t *testing.T) {
 	}
 	if sender.channel == nil || sender.channel.Channel != "sms" {
 		t.Fatal("expected sms channel to be rendered")
+	}
+	if sender.cfg == nil || len(sender.cfg.Audience.Recipients) != 1 || sender.cfg.Audience.Recipients[0] != "13111223344" {
+		t.Fatalf("unexpected sender cfg: %+v", sender.cfg)
 	}
 	if recorder.record == nil {
 		t.Fatal("expected record to be saved")
@@ -88,8 +95,10 @@ func TestProcessSuccessWithoutCreatedAt(t *testing.T) {
 			return smsConfig(), nil
 		},
 		TemplateRoot: filepath.Join("..", "templates"),
-		Sender:       sender,
-		Recorder:     recorder,
+		Senders: map[string]ChannelSender{
+			"sms": sender,
+		},
+		Recorder: recorder,
 		Now: func() time.Time {
 			return now
 		},
@@ -116,8 +125,10 @@ func TestProcessRetryOnSendFailure(t *testing.T) {
 			return smsConfig(), nil
 		},
 		TemplateRoot: filepath.Join("..", "templates"),
-		Sender: &stubSender{
-			err: errors.New("send failed"),
+		Senders: map[string]ChannelSender{
+			"sms": &stubSender{
+				err: errors.New("send failed"),
+			},
 		},
 		Publisher:  publisher,
 		Recorder:   recorder,
@@ -153,9 +164,11 @@ func TestProcessBeforeExpectedSendAt(t *testing.T) {
 			return smsConfig(), nil
 		},
 		TemplateRoot: filepath.Join("..", "templates"),
-		Sender:       &stubSender{},
-		Publisher:    publisher,
-		Recorder:     &stubRecorder{},
+		Senders: map[string]ChannelSender{
+			"sms": &stubSender{},
+		},
+		Publisher: publisher,
+		Recorder:  &stubRecorder{},
 		Now: func() time.Time {
 			return now
 		},
@@ -187,8 +200,10 @@ func TestProcessExpired(t *testing.T) {
 			return smsConfig(), nil
 		},
 		TemplateRoot: filepath.Join("..", "templates"),
-		Sender:       &stubSender{},
-		Recorder:     recorder,
+		Senders: map[string]ChannelSender{
+			"sms": &stubSender{},
+		},
+		Recorder: recorder,
 		Now: func() time.Time {
 			return now
 		},
@@ -217,8 +232,10 @@ func TestProcessFinalFailure(t *testing.T) {
 			return smsConfig(), nil
 		},
 		TemplateRoot: filepath.Join("..", "templates"),
-		Sender: &stubSender{
-			err: errors.New("send failed"),
+		Senders: map[string]ChannelSender{
+			"sms": &stubSender{
+				err: errors.New("send failed"),
+			},
 		},
 		Recorder: recorder,
 		MaxRetry: 3,
@@ -250,8 +267,10 @@ func TestProcessThirdRetryStillPublishes(t *testing.T) {
 			return smsConfig(), nil
 		},
 		TemplateRoot: filepath.Join("..", "templates"),
-		Sender: &stubSender{
-			err: errors.New("send failed"),
+		Senders: map[string]ChannelSender{
+			"sms": &stubSender{
+				err: errors.New("send failed"),
+			},
 		},
 		Publisher: publisher,
 		Recorder:  &stubRecorder{},
@@ -296,8 +315,16 @@ func smsConfig() *config.MessageConfig {
 	return &config.MessageConfig{
 		Channels: []render.ChannelPolicy{
 			{
-				Channel:      "sms",
-				TemplateCode: "SMS_001",
+				Channel: "sms",
+				Template: render.TemplateConfig{
+					TemplateKey: "commonTemplate",
+				},
+				Audience: render.AudienceConfig{
+					Recipients: []string{"13111223344"},
+				},
+				Delivery: render.DeliveryConfig{
+					Platform: "ali",
+				},
 			},
 		},
 	}
