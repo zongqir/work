@@ -70,3 +70,23 @@ func TestRenderByPolicyRejectsEscapingTemplatePath(t *testing.T) {
 	}
 }
 
+func TestRenderDispatchRejectsNil(t *testing.T) {
+	policy := &EffectivePolicy{
+		TenantID:    "t_1",
+		MessageType: "xdr_risk_digest",
+	}
+
+	_, err := RenderDispatch(nil, policy, ".")
+	if !errors.Is(err, contract.ErrInvalidRequest) {
+		t.Fatalf("expected ErrInvalidRequest for nil message, got %v", err)
+	}
+
+	_, err = RenderDispatch(&contract.DispatchMessage{
+		TenantID:    "t_1",
+		MessageType: "xdr_risk_digest",
+		BizVars:     contract.TemplateVars{"k": "v"},
+	}, nil, ".")
+	if !errors.Is(err, contract.ErrInvalidRequest) {
+		t.Fatalf("expected ErrInvalidRequest for nil policy, got %v", err)
+	}
+}

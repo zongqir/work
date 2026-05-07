@@ -76,6 +76,8 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 		CreatedAt:      createdAt,
 		ExpectedSendAt: createdAt,
 		ExpireAt:       createdAt.Add(expireAfter),
+		WindowStart:    windowStart,
+		WindowEnd:      windowEnd,
 		BizVars:        result.BizVars,
 	})
 }
@@ -207,4 +209,3 @@ func buildAggregateIdempotencyKey(tenantID, messageType string, windowStart, win
 func buildRealtimeIdempotencyKey(tenantID, messageType, bizKey string) string {
 	return fmt.Sprintf("realtime:%s:%s:%s", tenantID, messageType, bizKey)
 }
-

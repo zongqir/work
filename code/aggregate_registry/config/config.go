@@ -1,10 +1,50 @@
 package config
 
-import "encoding/json"
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"notes/code/aggregate_registry/contract"
+	"notes/code/aggregate_registry/render"
+)
 
 type MessageConfig struct {
-	RealtimeEnabled        bool            `json:"realtime_enabled"`
-	AggregateEnabled       bool            `json:"aggregate_enabled"`
-	Filter                 json.RawMessage `json:"filter"`
-	AggregatePeriodMinutes int             `json:"aggregate_period_minutes"`
+	RealtimeEnabled        bool                   `json:"realtime_enabled"`
+	AggregateEnabled       bool                   `json:"aggregate_enabled"`
+	Filter                 json.RawMessage        `json:"filter"`
+	AggregatePeriodMinutes int                    `json:"aggregate_period_minutes"`
+	Channels               []render.ChannelPolicy `json:"channels"`
+}
+
+func LoadMessageConfig(
+	ctx context.Context,
+	tenantID, messageType string,
+	loadAll func(context.Context) (map[string]map[string]json.RawMessage, error),
+) (*MessageConfig, error) {
+	if loadAll == nil {
+		return nil, fmt.Errorf("%w: load_all is required", contract.ErrInvalidRequest)
+	}
+	if tenantID == "" {
+		return nil, fmt.Errorf("%w: tenant_id is required", contract.ErrInvalidRequest)
+	}
+	if messageType == "" {
+		return nil, fmt.Errorf("%w: message_type is required", contract.ErrInvalidRequest)
+	}
+
+	all, err := loadAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	raw := all[tenantID][messageType]
+	if len(raw) == 0 {
+		return nil, nil
+	}
+
+	var cfg MessageConfig
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
 }

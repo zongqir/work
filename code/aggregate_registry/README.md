@@ -171,7 +171,7 @@ dispatcher := &dispatch.Dispatcher{
 投递处理入口统一放在 `delivery/`：
 
 - `Processor` 直接就是处理器本体，不再额外包一层 `Options/New`
-- `Processor.Process(...)` 只做来源无关的发送处理链路
+- `Processor.Process(...)` 先加载渠道策略并渲染，再按渠道调用发送接口
 - 成功：写成功记录
 - 失败且还能重试：投递延期消息
 - 默认最多重试 `3` 次，也就是一共最多消费 `4` 次
@@ -216,6 +216,7 @@ dispatcher := &dispatch.Dispatcher{
 - `contract/`：共享契约
 - `config/`：分发配置模型和配置缓存
 - `render/`：生效策略和模板渲染
+- `delivery/`：消费侧策略加载、模板渲染、发送重试和记录
 - `publisher/`：消息发布实现
 - `consumer/`：Pulsar 消费和 `Processor.Process(...)` 接线
 - `dispatch/`：配置驱动的消息分发

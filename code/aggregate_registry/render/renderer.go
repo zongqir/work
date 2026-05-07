@@ -51,6 +51,25 @@ func BuildTemplateContext(req *contract.BizAggregateRequest, result *contract.Bi
 	}, nil
 }
 
+func BuildDispatchTemplateContext(msg *contract.DispatchMessage) (map[string]contract.TemplateVars, error) {
+	if msg == nil {
+		return nil, fmt.Errorf("%w: dispatch message is required", contract.ErrInvalidRequest)
+	}
+	if len(msg.BizVars) == 0 {
+		return nil, fmt.Errorf("%w: biz_vars is required", contract.ErrInvalidRequest)
+	}
+
+	sysVars := contract.TemplateVars{}
+	if !msg.WindowStart.IsZero() && !msg.WindowEnd.IsZero() {
+		sysVars["window_label"] = formatWindowLabel(msg.WindowStart, msg.WindowEnd)
+	}
+
+	return map[string]contract.TemplateVars{
+		"biz": msg.BizVars,
+		"sys": sysVars,
+	}, nil
+}
+
 func RenderByPolicy(req *contract.BizAggregateRequest, result *contract.BizAggregateResult, policy *EffectivePolicy, templateRoot string) ([]RenderedChannelMessage, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w: aggregate request is required", contract.ErrInvalidRequest)
@@ -69,6 +88,37 @@ func RenderByPolicy(req *contract.BizAggregateRequest, result *contract.BizAggre
 	}
 
 	context, err := BuildTemplateContext(req, result)
+	if err != nil {
+		return nil, err
+	}
+
+	renderedMessages := make([]RenderedChannelMessage, 0, len(policy.Channels))
+	for _, channelPolicy := range policy.Channels {
+		rendered, err := renderChannel(context, channelPolicy, templateRoot)
+		if err != nil {
+			return nil, err
+		}
+		renderedMessages = append(renderedMessages, rendered)
+	}
+
+	return renderedMessages, nil
+}
+
+func RenderDispatch(msg *contract.DispatchMessage, policy *EffectivePolicy, templateRoot string) ([]RenderedChannelMessage, error) {
+	if msg == nil {
+		return nil, fmt.Errorf("%w: dispatch message is required", contract.ErrInvalidRequest)
+	}
+	if policy == nil {
+		return nil, fmt.Errorf("%w: effective policy is required", contract.ErrInvalidRequest)
+	}
+	if policy.TenantID != msg.TenantID {
+		return nil, fmt.Errorf("policy tenant_id mismatch: %s", policy.TenantID)
+	}
+	if policy.MessageType != msg.MessageType {
+		return nil, fmt.Errorf("policy message_type mismatch: %s", policy.MessageType)
+	}
+
+	context, err := BuildDispatchTemplateContext(msg)
 	if err != nil {
 		return nil, err
 	}
@@ -192,4 +242,3 @@ func formatWindowLabel(start, end time.Time) string {
 		return fmt.Sprintf("%s - %s", start.Format("2006-01-02 15:04"), end.Format("15:04"))
 	}
 }
-

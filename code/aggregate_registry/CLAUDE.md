@@ -23,7 +23,7 @@ contract/    类型、Handler 接口（4方法）、注册表（MustRegister/Res
 config/      MessageConfig（租户配置结构）、Cache（带异步刷新的配置缓存）
 dispatch/    Dispatcher.SendAggregate / SendRealtime —— 编排层：查配置、解析 filter、调 handler、构建 DispatchMessage 并发到 Publisher
 scheduler/   AggregateScheduler —— 定时轮询配置，按 watermark 推进聚合窗口，调用 Dispatcher
-delivery/    Processor —— 消费 DispatchMessage：发送 → 失败重试 → 记录结果
+delivery/    Processor —— 消费 DispatchMessage：加载策略 → 渲染渠道消息 → 发送 → 失败重试 → 记录结果
 consumer/    PulsarConsumer —— 订阅 Pulsar，反序列化 DispatchMessage，调用 Processor.Process(...)
 handlers/    业务 handler 实现。每个 handler 通过 init() 自注册到 contract.MustRegister()
 render/      模板渲染（email/webhook/SMS），根据 EffectivePolicy 产出最终通知内容

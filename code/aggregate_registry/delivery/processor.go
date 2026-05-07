@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"notes/code/aggregate_registry/config"
 	"notes/code/aggregate_registry/contract"
+	"notes/code/aggregate_registry/render"
 )
 
 type Sender interface {
-	Send(ctx context.Context, msg *contract.DispatchMessage) error
+	Send(ctx context.Context, msg *contract.DispatchMessage, channel render.RenderedChannelMessage) error
 }
 
 type Publisher interface {
@@ -37,17 +39,25 @@ type SendRecord struct {
 }
 
 type Processor struct {
-	Sender     Sender
-	Publisher  Publisher
-	Recorder   Recorder
-	RetryDelay time.Duration
-	MaxRetry   int
-	Now        func() time.Time
+	LoadConfig   func(ctx context.Context, tenantID, messageType string) (*config.MessageConfig, error)
+	TemplateRoot string
+	Sender       Sender
+	Publisher    Publisher
+	Recorder     Recorder
+	RetryDelay   time.Duration
+	MaxRetry     int
+	Now          func() time.Time
 }
 
 func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) error {
 	if p == nil || p.Sender == nil {
 		return fmt.Errorf("%w: sender is required", contract.ErrInvalidRequest)
+	}
+	if p.LoadConfig == nil {
+		return fmt.Errorf("%w: load_config is required", contract.ErrInvalidRequest)
+	}
+	if p.TemplateRoot == "" {
+		return fmt.Errorf("%w: template_root is required", contract.ErrInvalidRequest)
 	}
 	if p.Recorder == nil {
 		return fmt.Errorf("%w: recorder is required", contract.ErrInvalidRequest)
@@ -92,31 +102,50 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 			UpdatedAt:       current,
 		})
 	}
-	if err := p.Sender.Send(ctx, msg); err != nil {
-		maxRetry := p.MaxRetry
-		if maxRetry <= 0 {
-			maxRetry = DefaultMaxRetry
-		}
-		if msg.RetryCount < maxRetry {
-			if p.Publisher == nil {
-				return fmt.Errorf("%w: publisher is required", contract.ErrTemporaryFailure)
+
+	cfg, err := p.LoadConfig(ctx, msg.TenantID, msg.MessageType)
+	if err != nil {
+		return err
+	}
+	if cfg == nil || len(cfg.Channels) == 0 {
+		return fmt.Errorf("%w: channels are required", contract.ErrUnsupportedConfig)
+	}
+	policy := &render.EffectivePolicy{
+		TenantID:    msg.TenantID,
+		MessageType: msg.MessageType,
+		Channels:    cfg.Channels,
+	}
+	renderedMessages, err := render.RenderDispatch(msg, policy, p.TemplateRoot)
+	if err != nil {
+		return err
+	}
+	for _, channel := range renderedMessages {
+		if err := p.Sender.Send(ctx, msg, channel); err != nil {
+			maxRetry := p.MaxRetry
+			if maxRetry <= 0 {
+				maxRetry = DefaultMaxRetry
 			}
-			retryDelay := p.RetryDelay
-			if retryDelay <= 0 {
-				retryDelay = time.Minute
+			if msg.RetryCount < maxRetry {
+				if p.Publisher == nil {
+					return fmt.Errorf("%w: publisher is required", contract.ErrTemporaryFailure)
+				}
+				retryDelay := p.RetryDelay
+				if retryDelay <= 0 {
+					retryDelay = time.Minute
+				}
+				retry := *msg
+				retry.RetryCount++
+				retry.ExpectedSendAt = current.Add(retryDelay)
+				return p.Publisher.Publish(ctx, &retry)
 			}
-			retry := *msg
-			retry.RetryCount++
-			retry.ExpectedSendAt = current.Add(retryDelay)
-			return p.Publisher.Publish(ctx, &retry)
+			record := *msg
+			return p.Recorder.Save(ctx, &SendRecord{
+				DispatchMessage: record,
+				Status:          StatusFailed,
+				ErrorMessage:    err.Error(),
+				UpdatedAt:       current,
+			})
 		}
-		record := *msg
-		return p.Recorder.Save(ctx, &SendRecord{
-			DispatchMessage: record,
-			Status:          StatusFailed,
-			ErrorMessage:    err.Error(),
-			UpdatedAt:       current,
-		})
 	}
 
 	record := *msg
@@ -126,4 +155,3 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 		UpdatedAt:       current,
 	})
 }
-
