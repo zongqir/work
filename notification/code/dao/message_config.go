@@ -3,19 +3,22 @@ package dao
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"work/notification/code/render"
 )
 
+var ErrNotFound = errors.New("dao: not found")
+
 type TenantMessageConfig struct {
 	TenantID               string
 	MessageType            string
-	RealtimeEnabled        *bool
-	AggregateEnabled       *bool
-	AggregatePeriodMinutes *int
+	RealtimeEnabled        bool
+	AggregateEnabled       bool
+	AggregatePeriodMinutes int
 	Filter                 json.RawMessage
-	Channel                *render.ChannelPolicy
+	Channel                render.ChannelPolicy
 	UpdatedBy              string
 	UpdatedAt              time.Time
 }

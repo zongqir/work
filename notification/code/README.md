@@ -72,8 +72,8 @@
 - `system_vars` 由通知平台负责
 - `system_vars` 在渲染前由平台按消息身份加载，不写入 `DispatchMessage`
 - `tenant_id + message_type -> channel` 由通知配置侧负责
-- 默认消息配置不写 DB，由 JSON 配置源提供
-- DB/DAO 只保存租户级覆盖配置，运行时 `LoadAll` 返回合并后的生效配置
+- 默认消息配置不写 DB，由 `default_message_configs.json` 提供
+- DB/DAO 只保存租户级覆盖配置；有租户记录就直接用，没有就读默认 JSON
 - `email` 和 `webhook` 走本地模板资产
 - `sms` 直接使用 `templateCode + kv`
 
