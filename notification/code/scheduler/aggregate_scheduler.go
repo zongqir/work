@@ -109,11 +109,11 @@ func (s *AggregateScheduler) tickOne(
 		return nil
 	}
 
-	var cfg config.MessageConfig
-	if err := json.Unmarshal(raw, &cfg); err != nil {
+	cfg, err := config.ParseMessageConfig(raw)
+	if err != nil {
 		return err
 	}
-	if !cfg.AggregateEnabled || cfg.AggregatePeriodMinutes <= 0 {
+	if cfg == nil || !cfg.AggregateEnabled || cfg.AggregatePeriodMinutes <= 0 {
 		return nil
 	}
 

@@ -29,12 +29,20 @@ func FromFiles(requestPath, resultPath, policyPath, templateRoot string, showCon
 		return nil, err
 	}
 
-	templateContext, err := render.BuildTemplateContext(req, result)
+	input := render.RenderInput{
+		TenantID:    req.TenantID,
+		MessageType: policy.MessageType,
+		WindowStart: req.WindowStart,
+		WindowEnd:   req.WindowEnd,
+		BizVars:     result.BizVars,
+	}
+
+	templateContext, err := render.BuildTemplateContext(input)
 	if err != nil {
 		return nil, err
 	}
 
-	rendered, err := render.RenderByPolicy(req, result, policy, templateRoot)
+	rendered, err := render.Render(input, policy, templateRoot)
 	if err != nil {
 		return nil, err
 	}

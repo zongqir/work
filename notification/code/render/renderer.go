@@ -40,94 +40,50 @@ type RenderedParam struct {
 	ParamValue string `json:"param_value"`
 }
 
-func BuildTemplateContext(req *contract.BizAggregateRequest, result *contract.BizAggregateResult) (map[string]contract.TemplateVars, error) {
-	if req == nil {
-		return nil, fmt.Errorf("%w: aggregate request is required", contract.ErrInvalidRequest)
-	}
-	if result == nil {
-		return nil, fmt.Errorf("%w: aggregate result is required", contract.ErrInvalidRequest)
-	}
-	if len(result.BizVars) == 0 {
+type RenderInput struct {
+	TenantID    string
+	MessageType string
+	WindowStart time.Time
+	WindowEnd   time.Time
+	BizVars     contract.TemplateVars
+}
+
+func BuildTemplateContext(input RenderInput) (map[string]contract.TemplateVars, error) {
+	if len(input.BizVars) == 0 {
 		return nil, fmt.Errorf("%w: biz_vars is required", contract.ErrInvalidRequest)
 	}
+
 	sysVars := contract.TemplateVars{
-		"window_label": formatWindowLabel(req.WindowStart, req.WindowEnd),
+		"window_label": formatWindowLabel(input.WindowStart, input.WindowEnd),
+	}
+	if input.WindowStart.IsZero() || input.WindowEnd.IsZero() {
+		sysVars = contract.TemplateVars{}
 	}
 
 	return map[string]contract.TemplateVars{
-		"biz": result.BizVars,
+		"biz": input.BizVars,
 		"sys": sysVars,
 	}, nil
 }
 
-func BuildDispatchTemplateContext(msg *contract.DispatchMessage) (map[string]contract.TemplateVars, error) {
-	if msg == nil {
-		return nil, fmt.Errorf("%w: dispatch message is required", contract.ErrInvalidRequest)
+func Render(input RenderInput, policy *EffectivePolicy, templateRoot string) ([]RenderedChannelMessage, error) {
+	if input.TenantID == "" {
+		return nil, fmt.Errorf("%w: tenant_id is required", contract.ErrInvalidRequest)
 	}
-	if len(msg.BizVars) == 0 {
-		return nil, fmt.Errorf("%w: biz_vars is required", contract.ErrInvalidRequest)
-	}
-
-	sysVars := contract.TemplateVars{}
-	if !msg.WindowStart.IsZero() && !msg.WindowEnd.IsZero() {
-		sysVars["window_label"] = formatWindowLabel(msg.WindowStart, msg.WindowEnd)
-	}
-
-	return map[string]contract.TemplateVars{
-		"biz": msg.BizVars,
-		"sys": sysVars,
-	}, nil
-}
-
-func RenderByPolicy(req *contract.BizAggregateRequest, result *contract.BizAggregateResult, policy *EffectivePolicy, templateRoot string) ([]RenderedChannelMessage, error) {
-	if req == nil {
-		return nil, fmt.Errorf("%w: aggregate request is required", contract.ErrInvalidRequest)
-	}
-	if result == nil {
-		return nil, fmt.Errorf("%w: aggregate result is required", contract.ErrInvalidRequest)
+	if input.MessageType == "" {
+		return nil, fmt.Errorf("%w: message_type is required", contract.ErrInvalidRequest)
 	}
 	if policy == nil {
 		return nil, fmt.Errorf("%w: effective policy is required", contract.ErrInvalidRequest)
 	}
-	if policy.TenantID != req.TenantID {
+	if policy.TenantID != input.TenantID {
 		return nil, fmt.Errorf("policy tenant_id mismatch: %s", policy.TenantID)
 	}
-	if policy.MessageType == "" {
-		return nil, fmt.Errorf("%w: policy message_type is required", contract.ErrInvalidRequest)
-	}
-
-	context, err := BuildTemplateContext(req, result)
-	if err != nil {
-		return nil, err
-	}
-
-	renderedMessages := make([]RenderedChannelMessage, 0, len(policy.Channels))
-	for _, channelPolicy := range policy.Channels {
-		rendered, err := renderChannel(context, channelPolicy, templateRoot)
-		if err != nil {
-			return nil, err
-		}
-		renderedMessages = append(renderedMessages, rendered)
-	}
-
-	return renderedMessages, nil
-}
-
-func RenderDispatch(msg *contract.DispatchMessage, policy *EffectivePolicy, templateRoot string) ([]RenderedChannelMessage, error) {
-	if msg == nil {
-		return nil, fmt.Errorf("%w: dispatch message is required", contract.ErrInvalidRequest)
-	}
-	if policy == nil {
-		return nil, fmt.Errorf("%w: effective policy is required", contract.ErrInvalidRequest)
-	}
-	if policy.TenantID != msg.TenantID {
-		return nil, fmt.Errorf("policy tenant_id mismatch: %s", policy.TenantID)
-	}
-	if policy.MessageType != msg.MessageType {
+	if policy.MessageType != input.MessageType {
 		return nil, fmt.Errorf("policy message_type mismatch: %s", policy.MessageType)
 	}
 
-	context, err := BuildDispatchTemplateContext(msg)
+	context, err := BuildTemplateContext(input)
 	if err != nil {
 		return nil, err
 	}

@@ -115,7 +115,13 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 		MessageType: msg.MessageType,
 		Channels:    cfg.Channels,
 	}
-	renderedMessages, err := render.RenderDispatch(msg, policy, p.TemplateRoot)
+	renderedMessages, err := render.Render(render.RenderInput{
+		TenantID:    msg.TenantID,
+		MessageType: msg.MessageType,
+		WindowStart: msg.WindowStart,
+		WindowEnd:   msg.WindowEnd,
+		BizVars:     msg.BizVars,
+	}, policy, p.TemplateRoot)
 	if err != nil {
 		return err
 	}

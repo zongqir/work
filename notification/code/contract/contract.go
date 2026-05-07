@@ -46,11 +46,20 @@ type AggregateProvider interface {
 	Aggregate(ctx context.Context, req *BizAggregateRequest) (*BizAggregateResult, error)
 }
 
-// Handler 是同时支持实时和聚合的兼容契约。
-type Handler interface {
+type RealtimeHandler interface {
 	MessageTypeSpec
 	RealtimeEvaluator
+}
+
+type AggregateHandler interface {
+	MessageTypeSpec
 	AggregateProvider
+}
+
+// Handler 是同时支持实时和聚合的兼容契约。
+type Handler interface {
+	RealtimeHandler
+	AggregateHandler
 }
 
 type Registration struct {

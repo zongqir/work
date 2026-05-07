@@ -8,50 +8,39 @@ import (
 	"work/notification/code/contract"
 )
 
-func TestBuildTemplateContextRejectsNil(t *testing.T) {
-	_, err := BuildTemplateContext(nil, &contract.BizAggregateResult{
-		BizVars: contract.TemplateVars{"k": "v"},
-	})
+func TestBuildTemplateContextRejectsEmptyBizVars(t *testing.T) {
+	_, err := BuildTemplateContext(RenderInput{})
 	if !errors.Is(err, contract.ErrInvalidRequest) {
-		t.Fatalf("expected ErrInvalidRequest for nil request, got %v", err)
-	}
-
-	_, err = BuildTemplateContext(&contract.BizAggregateRequest{}, nil)
-	if !errors.Is(err, contract.ErrInvalidRequest) {
-		t.Fatalf("expected ErrInvalidRequest for nil result, got %v", err)
+		t.Fatalf("expected ErrInvalidRequest for empty biz vars, got %v", err)
 	}
 }
 
-func TestRenderByPolicyRejectsNil(t *testing.T) {
-	req := &contract.BizAggregateRequest{TenantID: "t_1"}
-	result := &contract.BizAggregateResult{
-		BizVars: contract.TemplateVars{"total_count": "1"},
-	}
+func TestRenderRejectsInvalidInput(t *testing.T) {
 	policy := &EffectivePolicy{
 		TenantID:    "t_1",
 		MessageType: "xdr_risk_digest",
 	}
 
-	_, err := RenderByPolicy(nil, result, policy, ".")
+	_, err := Render(RenderInput{}, policy, ".")
 	if !errors.Is(err, contract.ErrInvalidRequest) {
-		t.Fatalf("expected ErrInvalidRequest for nil request, got %v", err)
+		t.Fatalf("expected ErrInvalidRequest for empty input, got %v", err)
 	}
 
-	_, err = RenderByPolicy(req, nil, policy, ".")
-	if !errors.Is(err, contract.ErrInvalidRequest) {
-		t.Fatalf("expected ErrInvalidRequest for nil result, got %v", err)
-	}
-
-	_, err = RenderByPolicy(req, result, nil, ".")
+	_, err = Render(RenderInput{
+		TenantID:    "t_1",
+		MessageType: "xdr_risk_digest",
+		BizVars:     contract.TemplateVars{"k": "v"},
+	}, nil, ".")
 	if !errors.Is(err, contract.ErrInvalidRequest) {
 		t.Fatalf("expected ErrInvalidRequest for nil policy, got %v", err)
 	}
 }
 
-func TestRenderByPolicyRejectsEscapingTemplatePath(t *testing.T) {
-	req := &contract.BizAggregateRequest{TenantID: "t_1"}
-	result := &contract.BizAggregateResult{
-		BizVars: contract.TemplateVars{"total_count": "1"},
+func TestRenderRejectsEscapingTemplatePath(t *testing.T) {
+	input := RenderInput{
+		TenantID:    "t_1",
+		MessageType: "xdr_risk_digest",
+		BizVars:     contract.TemplateVars{"total_count": "1"},
 	}
 	policy := &EffectivePolicy{
 		TenantID:    "t_1",
@@ -64,29 +53,32 @@ func TestRenderByPolicyRejectsEscapingTemplatePath(t *testing.T) {
 		},
 	}
 
-	_, err := RenderByPolicy(req, result, policy, filepath.Join("testdata", "templates"))
+	_, err := Render(input, policy, filepath.Join("testdata", "templates"))
 	if !errors.Is(err, contract.ErrInvalidRequest) {
 		t.Fatalf("expected ErrInvalidRequest for escaping template path, got %v", err)
 	}
 }
 
-func TestRenderDispatchRejectsNil(t *testing.T) {
-	policy := &EffectivePolicy{
-		TenantID:    "t_1",
-		MessageType: "xdr_risk_digest",
-	}
-
-	_, err := RenderDispatch(nil, policy, ".")
-	if !errors.Is(err, contract.ErrInvalidRequest) {
-		t.Fatalf("expected ErrInvalidRequest for nil message, got %v", err)
-	}
-
-	_, err = RenderDispatch(&contract.DispatchMessage{
+func TestRenderRejectsPolicyMismatch(t *testing.T) {
+	input := RenderInput{
 		TenantID:    "t_1",
 		MessageType: "xdr_risk_digest",
 		BizVars:     contract.TemplateVars{"k": "v"},
-	}, nil, ".")
-	if !errors.Is(err, contract.ErrInvalidRequest) {
-		t.Fatalf("expected ErrInvalidRequest for nil policy, got %v", err)
+	}
+
+	_, err := Render(input, &EffectivePolicy{
+		TenantID:    "t_2",
+		MessageType: "xdr_risk_digest",
+	}, ".")
+	if err == nil {
+		t.Fatal("expected tenant mismatch")
+	}
+
+	_, err = Render(input, &EffectivePolicy{
+		TenantID:    "t_1",
+		MessageType: "other",
+	}, ".")
+	if err == nil {
+		t.Fatal("expected message type mismatch")
 	}
 }

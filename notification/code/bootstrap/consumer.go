@@ -75,19 +75,7 @@ func NewConsumer(config ConsumerConfig) (*ConsumerService, error) {
 
 	processor := &delivery.Processor{
 		LoadConfig: func(ctx context.Context, tenantID, messageType string) (*configpkg.MessageConfig, error) {
-			raw, err := cache.Pick(ctx, tenantID, messageType, config.LoadAll, config.LogError)
-			if err != nil {
-				return nil, err
-			}
-			if len(raw) == 0 {
-				return nil, nil
-			}
-
-			var cfg configpkg.MessageConfig
-			if err := json.Unmarshal(raw, &cfg); err != nil {
-				return nil, err
-			}
-			return &cfg, nil
+			return configpkg.LoadCachedMessageConfig(ctx, tenantID, messageType, cache, config.LoadAll, config.LogError)
 		},
 		TemplateRoot: config.TemplateRoot,
 		Senders:      channels.NewSenders(config.HTTPClient, config.DeliveryBaseURL),

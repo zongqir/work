@@ -17,6 +17,18 @@ type MessageConfig struct {
 	Channels               []render.ChannelPolicy `json:"channels"`
 }
 
+func ParseMessageConfig(raw json.RawMessage) (*MessageConfig, error) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, nil
+	}
+
+	var cfg MessageConfig
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
 func LoadMessageConfig(
 	ctx context.Context,
 	tenantID, messageType string,
@@ -38,13 +50,29 @@ func LoadMessageConfig(
 	}
 
 	raw := all[tenantID][messageType]
-	if len(raw) == 0 {
-		return nil, nil
+	return ParseMessageConfig(raw)
+}
+
+func LoadCachedMessageConfig(
+	ctx context.Context,
+	tenantID, messageType string,
+	cache *Cache,
+	loadAll func(context.Context) (map[string]map[string]json.RawMessage, error),
+	logError func(context.Context, string, error),
+) (*MessageConfig, error) {
+	if cache == nil {
+		return LoadMessageConfig(ctx, tenantID, messageType, loadAll)
+	}
+	if tenantID == "" {
+		return nil, fmt.Errorf("%w: tenant_id is required", contract.ErrInvalidRequest)
+	}
+	if messageType == "" {
+		return nil, fmt.Errorf("%w: message_type is required", contract.ErrInvalidRequest)
 	}
 
-	var cfg MessageConfig
-	if err := json.Unmarshal(raw, &cfg); err != nil {
+	raw, err := cache.Pick(ctx, tenantID, messageType, loadAll, logError)
+	if err != nil {
 		return nil, err
 	}
-	return &cfg, nil
+	return ParseMessageConfig(raw)
 }

@@ -88,6 +88,17 @@ func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType str
 	if err != nil {
 		return err
 	}
+	return d.sendRealtime(ctx, tenantID, spec, realtime, cfg, event)
+}
+
+func (d *Dispatcher) sendRealtime(
+	ctx context.Context,
+	tenantID string,
+	spec contract.MessageTypeSpec,
+	realtime contract.RealtimeEvaluator,
+	cfg *config.MessageConfig,
+	event any,
+) error {
 	if cfg == nil || !cfg.RealtimeEnabled {
 		return nil
 	}
@@ -181,19 +192,7 @@ func (d *Dispatcher) loadConfig(ctx context.Context, tenantID, messageType strin
 	}
 
 	d.ensureCache()
-	configBody, err := d.cache.Pick(ctx, tenantID, messageType, d.LoadAll, d.LogError)
-	if err != nil {
-		return nil, err
-	}
-	if len(configBody) == 0 {
-		return nil, nil
-	}
-
-	var cfg config.MessageConfig
-	if err := json.Unmarshal(configBody, &cfg); err != nil {
-		return nil, err
-	}
-	return &cfg, nil
+	return config.LoadCachedMessageConfig(ctx, tenantID, messageType, &d.cache, d.LoadAll, d.LogError)
 }
 
 func (d *Dispatcher) ensureCache() {

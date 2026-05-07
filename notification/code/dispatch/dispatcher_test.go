@@ -25,6 +25,11 @@ type stubSendHandler struct {
 	realtimeCalled  bool
 }
 
+type stubLocalRealtimeHandler struct {
+	messageType    string
+	realtimeCalled bool
+}
+
 type stubFilter struct {
 	K string `json:"k"`
 	X string `json:"x"`
@@ -137,6 +142,24 @@ func TestSendAggregate(t *testing.T) {
 	}
 }
 
+func (h *stubLocalRealtimeHandler) MessageType() string { return h.messageType }
+func (h *stubLocalRealtimeHandler) NewFilter() any      { return &stubFilter{} }
+func (h *stubLocalRealtimeHandler) Evaluate(_ context.Context, req *contract.RealtimeRequest) (*contract.RealtimeResult, error) {
+	h.realtimeCalled = true
+	filter, ok := req.Filter.(*stubFilter)
+	if !ok {
+		return nil, contract.ErrInvalidRequest
+	}
+	return &contract.RealtimeResult{
+		Matched:        true,
+		IdempotencyKey: "local-biz",
+		BizVars: contract.TemplateVars{
+			"filter": filter.X,
+			"event":  req.Event,
+		},
+	}, nil
+}
+
 func TestSendRealtime(t *testing.T) {
 	realtimeHandler.realtimeCalled = false
 	now := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
@@ -215,6 +238,50 @@ func TestSendRealtimeRequiresIdempotencyKey(t *testing.T) {
 		t.Fatal("expected message to be published")
 	}
 	if publisher.msg.IdempotencyKey != "realtime:t_2:send_test_realtime:biz-1" {
+		t.Fatalf("unexpected idempotency_key: %s", publisher.msg.IdempotencyKey)
+	}
+}
+
+func TestSendRealtimeWithRealtimeOnlyRegistration(t *testing.T) {
+	now := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
+	handler := &stubLocalRealtimeHandler{messageType: "send_test_local"}
+	contract.MustRegisterImplementation(contract.Registration{
+		Spec:     handler,
+		Realtime: handler,
+	})
+
+	publisher := &stubPublisher{}
+	dispatcher := &Dispatcher{
+		Publisher: publisher,
+		Now: func() time.Time {
+			return now
+		},
+		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
+			return map[string]map[string]json.RawMessage{
+				"t_3": {
+					"send_test_local": json.RawMessage(`{"realtime_enabled":true,"filter":{"x":"local"}}`),
+				},
+			}, nil
+		},
+	}
+
+	err := dispatcher.SendRealtime(context.Background(), "t_3", "send_test_local", map[string]any{"event": "v"})
+	if err != nil {
+		t.Fatalf("SendRealtime failed: %v", err)
+	}
+	if !handler.realtimeCalled {
+		t.Fatal("expected local realtime handler to be called")
+	}
+	if publisher.msg == nil {
+		t.Fatal("expected message to be published")
+	}
+	if publisher.msg.MessageType != "send_test_local" {
+		t.Fatalf("unexpected message type: %s", publisher.msg.MessageType)
+	}
+	if publisher.msg.BizVars["filter"] != "local" {
+		t.Fatalf("expected parsed local filter, got %v", publisher.msg.BizVars["filter"])
+	}
+	if publisher.msg.IdempotencyKey != "realtime:t_3:send_test_local:local-biz" {
 		t.Fatalf("unexpected idempotency_key: %s", publisher.msg.IdempotencyKey)
 	}
 }
