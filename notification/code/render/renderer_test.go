@@ -51,11 +51,9 @@ func TestRenderRejectsEscapingTemplatePath(t *testing.T) {
 	policy := &EffectivePolicy{
 		TenantID:    "t_1",
 		MessageType: "sample_both",
-		Channels: []ChannelPolicy{
-			{
-				Channel:      "email",
-				TemplateCode: "..\\escape",
-			},
+		Channel: ChannelPolicy{
+			Channel:      "email",
+			TemplateCode: "..\\escape",
 		},
 	}
 

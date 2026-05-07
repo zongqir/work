@@ -89,16 +89,15 @@ func Render(input RenderInput, policy *EffectivePolicy, templateRoot string) ([]
 		return nil, err
 	}
 
-	renderedMessages := make([]RenderedChannelMessage, 0, len(policy.Channels))
-	for _, channelPolicy := range policy.Channels {
-		rendered, err := renderChannel(context, channelPolicy, templateRoot)
-		if err != nil {
-			return nil, err
-		}
-		renderedMessages = append(renderedMessages, rendered)
+	if policy.Channel.Channel == "" {
+		return nil, fmt.Errorf("%w: channel is required", contract.ErrUnsupportedConfig)
 	}
 
-	return renderedMessages, nil
+	rendered, err := renderChannel(context, policy.Channel, templateRoot)
+	if err != nil {
+		return nil, err
+	}
+	return []RenderedChannelMessage{rendered}, nil
 }
 
 func renderChannel(context map[string]contract.TemplateVars, policy ChannelPolicy, templateRoot string) (RenderedChannelMessage, error) {

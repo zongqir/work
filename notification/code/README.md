@@ -70,7 +70,7 @@
 
 - `biz_vars` 由业务聚合侧负责
 - `system_vars` 由通知平台负责
-- `tenant_id + message_type -> channels` 由通知配置侧负责
+- `tenant_id + message_type -> channel` 由通知配置侧负责
 - `email` 和 `webhook` 走本地模板资产
 - `sms` 直接使用 `templateCode + kv`
 
@@ -172,7 +172,7 @@ dispatcher := &dispatch.Dispatcher{
 
 - `Processor` 直接就是处理器本体，不再额外包一层 `Options/New`
 - `Processor.Process(...)` 先加载渠道策略并渲染，再按渠道调用发送接口
-- 每条消息当前只支持一个生效渠道，多渠道配置会按配置错误记录失败
+- 每条消息当前只支持一个生效渠道，配置模型使用单数 `channel`
 - 成功：写成功记录
 - 失败且还能重试：投递延期消息
 - 默认最多重试 `3` 次，也就是一共最多消费 `4` 次

@@ -1,18 +1,8 @@
 {
   "tenant_id": "t_1001",
   "message_type": "sample_both",
-  "channels": [
-    {
-      "channel": "email",
-      "template_code": "sample_both_default"
-    },
-    {
-      "channel": "webhook",
-      "template_code": "sample_both_default"
-    },
-    {
-      "channel": "sms",
-      "template_key": "SMS_001"
-    }
-  ]
+  "channel": {
+    "channel": "email",
+    "template_code": "sample_both_default"
+  }
 }

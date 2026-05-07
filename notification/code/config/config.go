@@ -10,32 +10,35 @@ import (
 )
 
 type MessageConfig struct {
-	RealtimeEnabled        bool                   `json:"realtime_enabled"`
-	AggregateEnabled       bool                   `json:"aggregate_enabled"`
-	Filter                 json.RawMessage        `json:"filter"`
-	AggregatePeriodMinutes int                    `json:"aggregate_period_minutes"`
-	RealtimeChannels       []render.ChannelPolicy `json:"realtime_channels"`
-	AggregateChannels      []render.ChannelPolicy `json:"aggregate_channels"`
-	Channels               []render.ChannelPolicy `json:"channels"`
+	RealtimeEnabled        bool                 `json:"realtime_enabled"`
+	AggregateEnabled       bool                 `json:"aggregate_enabled"`
+	Filter                 json.RawMessage      `json:"filter"`
+	AggregatePeriodMinutes int                  `json:"aggregate_period_minutes"`
+	RealtimeChannel        render.ChannelPolicy `json:"realtime_channel"`
+	AggregateChannel       render.ChannelPolicy `json:"aggregate_channel"`
+	Channel                render.ChannelPolicy `json:"channel"`
 }
 
-func (c *MessageConfig) ChannelsForSource(source string) []render.ChannelPolicy {
+func (c *MessageConfig) ChannelForSource(source string) (render.ChannelPolicy, bool) {
 	if c == nil {
-		return nil
+		return render.ChannelPolicy{}, false
 	}
 
 	switch source {
 	case contract.DispatchSourceRealtime:
-		if len(c.RealtimeChannels) > 0 {
-			return c.RealtimeChannels
+		if c.RealtimeChannel.Channel != "" {
+			return c.RealtimeChannel, true
 		}
 	case contract.DispatchSourceAggregate:
-		if len(c.AggregateChannels) > 0 {
-			return c.AggregateChannels
+		if c.AggregateChannel.Channel != "" {
+			return c.AggregateChannel, true
 		}
 	}
 
-	return c.Channels
+	if c.Channel.Channel == "" {
+		return render.ChannelPolicy{}, false
+	}
+	return c.Channel, true
 }
 
 func ParseMessageConfig(raw json.RawMessage) (*MessageConfig, error) {

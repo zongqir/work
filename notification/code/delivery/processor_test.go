@@ -116,7 +116,7 @@ func TestProcessSuccessWithoutCreatedAt(t *testing.T) {
 	}
 }
 
-func TestProcessUsesRealtimeChannelsForRealtimeSource(t *testing.T) {
+func TestProcessUsesRealtimeChannelForRealtimeSource(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	sender := &stubSender{}
 	p := &Processor{
@@ -148,7 +148,7 @@ func TestProcessUsesRealtimeChannelsForRealtimeSource(t *testing.T) {
 	}
 }
 
-func TestProcessUsesAggregateChannelsForAggregateSource(t *testing.T) {
+func TestProcessUsesAggregateChannelForAggregateSource(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	sender := &stubSender{}
 	p := &Processor{
@@ -346,46 +346,6 @@ func TestProcessRecordsFailureOnUnsupportedSender(t *testing.T) {
 	}
 }
 
-func TestProcessRecordsFailureOnMultipleChannels(t *testing.T) {
-	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
-	recorder := &stubRecorder{}
-	p := &Processor{
-		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
-			cfg := smsConfig()
-			cfg.Channels = append(cfg.Channels, render.ChannelPolicy{
-				Channel:     "sms",
-				TemplateKey: "anotherTemplate",
-				Audience: render.AudienceConfig{
-					Recipients: []string{"13211223344"},
-				},
-				Delivery: render.DeliveryConfig{
-					Platform: "ali",
-				},
-			})
-			return cfg, nil
-		},
-		TemplateRoot: filepath.Join("..", "templates"),
-		Senders: map[string]ChannelSender{
-			"sms": &stubSender{},
-		},
-		Recorder: recorder,
-		Now: func() time.Time {
-			return now
-		},
-	}
-
-	err := p.Process(context.Background(), newMessage(now))
-	if err != nil {
-		t.Fatalf("Process failed: %v", err)
-	}
-	if recorder.record == nil {
-		t.Fatal("expected failed record")
-	}
-	if recorder.record.Status != StatusFailed {
-		t.Fatalf("expected failed, got %s", recorder.record.Status)
-	}
-}
-
 func TestProcessRecordsFailureOnPermanentSenderError(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	publisher := &stubPublisher{}
@@ -511,16 +471,14 @@ func newMessage(createdAt time.Time) *contract.DispatchMessage {
 
 func smsConfig() *config.MessageConfig {
 	return &config.MessageConfig{
-		Channels: []render.ChannelPolicy{
-			{
-				Channel:     "sms",
-				TemplateKey: "commonTemplate",
-				Audience: render.AudienceConfig{
-					Recipients: []string{"13111223344"},
-				},
-				Delivery: render.DeliveryConfig{
-					Platform: "ali",
-				},
+		Channel: render.ChannelPolicy{
+			Channel:     "sms",
+			TemplateKey: "commonTemplate",
+			Audience: render.AudienceConfig{
+				Recipients: []string{"13111223344"},
+			},
+			Delivery: render.DeliveryConfig{
+				Platform: "ali",
 			},
 		},
 	}
@@ -528,28 +486,24 @@ func smsConfig() *config.MessageConfig {
 
 func sourceAwareSMSConfig() *config.MessageConfig {
 	return &config.MessageConfig{
-		RealtimeChannels: []render.ChannelPolicy{
-			{
-				Channel:     "sms",
-				TemplateKey: "commonTemplateRealtime",
-				Audience: render.AudienceConfig{
-					Recipients: []string{"13111111111"},
-				},
-				Delivery: render.DeliveryConfig{
-					Platform: "ali",
-				},
+		RealtimeChannel: render.ChannelPolicy{
+			Channel:     "sms",
+			TemplateKey: "commonTemplateRealtime",
+			Audience: render.AudienceConfig{
+				Recipients: []string{"13111111111"},
+			},
+			Delivery: render.DeliveryConfig{
+				Platform: "ali",
 			},
 		},
-		AggregateChannels: []render.ChannelPolicy{
-			{
-				Channel:     "sms",
-				TemplateKey: "commonTemplateAggregate",
-				Audience: render.AudienceConfig{
-					Recipients: []string{"13222222222"},
-				},
-				Delivery: render.DeliveryConfig{
-					Platform: "ali",
-				},
+		AggregateChannel: render.ChannelPolicy{
+			Channel:     "sms",
+			TemplateKey: "commonTemplateAggregate",
+			Audience: render.AudienceConfig{
+				Recipients: []string{"13222222222"},
+			},
+			Delivery: render.DeliveryConfig{
+				Platform: "ali",
 			},
 		},
 	}

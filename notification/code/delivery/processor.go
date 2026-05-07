@@ -110,17 +110,14 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 		}
 		return err
 	}
-	channels := cfg.ChannelsForSource(msg.Source)
-	if len(channels) == 0 {
-		return p.saveFailure(ctx, msg, current, fmt.Errorf("%w: channels are required", contract.ErrUnsupportedConfig))
-	}
-	if len(channels) > 1 {
-		return p.saveFailure(ctx, msg, current, fmt.Errorf("%w: only one channel is supported per message", contract.ErrUnsupportedConfig))
+	channelCfg, ok := cfg.ChannelForSource(msg.Source)
+	if !ok {
+		return p.saveFailure(ctx, msg, current, fmt.Errorf("%w: channel is required", contract.ErrUnsupportedConfig))
 	}
 	policy := &render.EffectivePolicy{
 		TenantID:    msg.TenantID,
 		MessageType: msg.MessageType,
-		Channels:    channels,
+		Channel:     channelCfg,
 	}
 	renderedMessages, err := render.Render(render.RenderInput{
 		TenantID:    msg.TenantID,
@@ -132,8 +129,7 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 	if err != nil {
 		return p.saveFailure(ctx, msg, current, err)
 	}
-	for idx, channel := range renderedMessages {
-		channelCfg := channels[idx]
+	for _, channel := range renderedMessages {
 		sender, ok := p.Senders[channel.Channel]
 		if !ok {
 			return p.saveFailure(ctx, msg, current, fmt.Errorf("%w: unsupported channel sender: %s", contract.ErrUnsupportedConfig, channel.Channel))

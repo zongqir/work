@@ -21,7 +21,7 @@ func TestFromFiles(t *testing.T) {
 	if result.TemplateContext == nil {
 		t.Fatal("expected template context")
 	}
-	if len(result.Rendered) != 3 {
-		t.Fatalf("expected 3 rendered channels, got %d", len(result.Rendered))
+	if len(result.Rendered) != 1 {
+		t.Fatalf("expected 1 rendered channel, got %d", len(result.Rendered))
 	}
 }

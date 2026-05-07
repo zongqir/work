@@ -1,9 +1,9 @@
 package render
 
 type EffectivePolicy struct {
-	TenantID    string          `json:"tenant_id"`
-	MessageType string          `json:"message_type"`
-	Channels    []ChannelPolicy `json:"channels"`
+	TenantID    string        `json:"tenant_id"`
+	MessageType string        `json:"message_type"`
+	Channel     ChannelPolicy `json:"channel"`
 }
 
 type ChannelPolicy struct {
