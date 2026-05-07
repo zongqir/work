@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"work/notification/code/contract"
 	"work/notification/code/render"
 )
 
@@ -28,11 +27,9 @@ func TestLoadMessageConfig(t *testing.T) {
 	}
 }
 
-func TestParseMessageConfigWithSourceChannel(t *testing.T) {
+func TestParseMessageConfigWithChannel(t *testing.T) {
 	cfg, err := ParseMessageConfig(json.RawMessage(`{
-		"realtime_channel": {"channel":"sms","template_key":"SMS_REALTIME"},
-		"aggregate_channel": {"channel":"email","template_code":"sample_both_aggregate"},
-		"channel": {"channel":"webhook","template_code":"sample_both_fallback"}
+		"channel": {"channel":"webhook","template_code":"sample_both"}
 	}`))
 	if err != nil {
 		t.Fatalf("ParseMessageConfig failed: %v", err)
@@ -40,49 +37,23 @@ func TestParseMessageConfigWithSourceChannel(t *testing.T) {
 	if cfg == nil {
 		t.Fatal("expected config")
 	}
-	if cfg.RealtimeChannel.TemplateKey != "SMS_REALTIME" {
-		t.Fatalf("unexpected realtime_channel: %+v", cfg.RealtimeChannel)
-	}
-	if cfg.AggregateChannel.TemplateCode != "sample_both_aggregate" {
-		t.Fatalf("unexpected aggregate_channel: %+v", cfg.AggregateChannel)
-	}
-	if cfg.Channel.TemplateCode != "sample_both_fallback" {
-		t.Fatalf("unexpected fallback channel: %+v", cfg.Channel)
+	if cfg.Channel.TemplateCode != "sample_both" {
+		t.Fatalf("unexpected channel: %+v", cfg.Channel)
 	}
 }
 
-func TestMessageConfigChannelForSource(t *testing.T) {
-	t.Run("use source specific channel", func(t *testing.T) {
-		cfg := &MessageConfig{
-			RealtimeChannel:  render.ChannelPolicy{Channel: "sms"},
-			AggregateChannel: render.ChannelPolicy{Channel: "email"},
-			Channel:          render.ChannelPolicy{Channel: "webhook"},
-		}
+func TestMessageConfigEffectiveChannel(t *testing.T) {
+	cfg := &MessageConfig{
+		Channel: render.ChannelPolicy{Channel: "webhook"},
+	}
 
-		realtimeChannel, ok := cfg.ChannelForSource(contract.DispatchSourceRealtime)
-		if !ok || realtimeChannel.Channel != "sms" {
-			t.Fatalf("unexpected realtime channel: %+v", realtimeChannel)
-		}
+	channel, ok := cfg.EffectiveChannel()
+	if !ok || channel.Channel != "webhook" {
+		t.Fatalf("unexpected channel: %+v", channel)
+	}
 
-		aggregateChannel, ok := cfg.ChannelForSource(contract.DispatchSourceAggregate)
-		if !ok || aggregateChannel.Channel != "email" {
-			t.Fatalf("unexpected aggregate channel: %+v", aggregateChannel)
-		}
-	})
-
-	t.Run("fallback to generic channel", func(t *testing.T) {
-		cfg := &MessageConfig{
-			Channel: render.ChannelPolicy{Channel: "webhook"},
-		}
-
-		realtimeChannel, ok := cfg.ChannelForSource(contract.DispatchSourceRealtime)
-		if !ok || realtimeChannel.Channel != "webhook" {
-			t.Fatalf("unexpected realtime fallback channel: %+v", realtimeChannel)
-		}
-
-		aggregateChannel, ok := cfg.ChannelForSource(contract.DispatchSourceAggregate)
-		if !ok || aggregateChannel.Channel != "webhook" {
-			t.Fatalf("unexpected aggregate fallback channel: %+v", aggregateChannel)
-		}
-	})
+	empty := &MessageConfig{}
+	if channel, ok := empty.EffectiveChannel(); ok {
+		t.Fatalf("expected no channel, got %+v", channel)
+	}
 }

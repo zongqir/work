@@ -116,12 +116,12 @@ func TestProcessSuccessWithoutCreatedAt(t *testing.T) {
 	}
 }
 
-func TestProcessUsesRealtimeChannelForRealtimeSource(t *testing.T) {
+func TestProcessUsesSameChannelForRealtimeSource(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	sender := &stubSender{}
 	p := &Processor{
 		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
-			return sourceAwareSMSConfig(), nil
+			return sharedSMSConfig(), nil
 		},
 		TemplateRoot: filepath.Join("..", "templates"),
 		Senders: map[string]ChannelSender{
@@ -140,20 +140,20 @@ func TestProcessUsesRealtimeChannelForRealtimeSource(t *testing.T) {
 	if sender.cfg == nil {
 		t.Fatal("expected sender config")
 	}
-	if sender.cfg.TemplateKey != "commonTemplateRealtime" {
-		t.Fatalf("unexpected realtime template key: %+v", sender.cfg)
+	if sender.cfg.TemplateKey != "commonTemplateShared" {
+		t.Fatalf("unexpected template key: %+v", sender.cfg)
 	}
 	if len(sender.cfg.Audience.Recipients) != 1 || sender.cfg.Audience.Recipients[0] != "13111111111" {
-		t.Fatalf("unexpected realtime audience: %+v", sender.cfg.Audience)
+		t.Fatalf("unexpected audience: %+v", sender.cfg.Audience)
 	}
 }
 
-func TestProcessUsesAggregateChannelForAggregateSource(t *testing.T) {
+func TestProcessUsesSameChannelForAggregateSource(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	sender := &stubSender{}
 	p := &Processor{
 		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
-			return sourceAwareSMSConfig(), nil
+			return sharedSMSConfig(), nil
 		},
 		TemplateRoot: filepath.Join("..", "templates"),
 		Senders: map[string]ChannelSender{
@@ -176,11 +176,11 @@ func TestProcessUsesAggregateChannelForAggregateSource(t *testing.T) {
 	if sender.cfg == nil {
 		t.Fatal("expected sender config")
 	}
-	if sender.cfg.TemplateKey != "commonTemplateAggregate" {
-		t.Fatalf("unexpected aggregate template key: %+v", sender.cfg)
+	if sender.cfg.TemplateKey != "commonTemplateShared" {
+		t.Fatalf("unexpected template key: %+v", sender.cfg)
 	}
-	if len(sender.cfg.Audience.Recipients) != 1 || sender.cfg.Audience.Recipients[0] != "13222222222" {
-		t.Fatalf("unexpected aggregate audience: %+v", sender.cfg.Audience)
+	if len(sender.cfg.Audience.Recipients) != 1 || sender.cfg.Audience.Recipients[0] != "13111111111" {
+		t.Fatalf("unexpected audience: %+v", sender.cfg.Audience)
 	}
 }
 
@@ -530,23 +530,13 @@ func smsConfig() *config.MessageConfig {
 	}
 }
 
-func sourceAwareSMSConfig() *config.MessageConfig {
+func sharedSMSConfig() *config.MessageConfig {
 	return &config.MessageConfig{
-		RealtimeChannel: render.ChannelPolicy{
+		Channel: render.ChannelPolicy{
 			Channel:     "sms",
-			TemplateKey: "commonTemplateRealtime",
+			TemplateKey: "commonTemplateShared",
 			Audience: render.AudienceConfig{
 				Recipients: []string{"13111111111"},
-			},
-			Delivery: render.DeliveryConfig{
-				Platform: "ali",
-			},
-		},
-		AggregateChannel: render.ChannelPolicy{
-			Channel:     "sms",
-			TemplateKey: "commonTemplateAggregate",
-			Audience: render.AudienceConfig{
-				Recipients: []string{"13222222222"},
 			},
 			Delivery: render.DeliveryConfig{
 				Platform: "ali",

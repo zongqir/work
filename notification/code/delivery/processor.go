@@ -111,7 +111,7 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 		}
 		return err
 	}
-	channelCfg, ok := cfg.ChannelForSource(msg.Source)
+	channelCfg, ok := cfg.EffectiveChannel()
 	if !ok {
 		return p.saveFailure(ctx, msg, current, fmt.Errorf("%w: channel is required", contract.ErrUnsupportedConfig))
 	}

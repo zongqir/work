@@ -14,27 +14,13 @@ type MessageConfig struct {
 	AggregateEnabled       bool                 `json:"aggregate_enabled"`
 	Filter                 json.RawMessage      `json:"filter"`
 	AggregatePeriodMinutes int                  `json:"aggregate_period_minutes"`
-	RealtimeChannel        render.ChannelPolicy `json:"realtime_channel"`
-	AggregateChannel       render.ChannelPolicy `json:"aggregate_channel"`
 	Channel                render.ChannelPolicy `json:"channel"`
 }
 
-func (c *MessageConfig) ChannelForSource(source string) (render.ChannelPolicy, bool) {
+func (c *MessageConfig) EffectiveChannel() (render.ChannelPolicy, bool) {
 	if c == nil {
 		return render.ChannelPolicy{}, false
 	}
-
-	switch source {
-	case contract.DispatchSourceRealtime:
-		if c.RealtimeChannel.Channel != "" {
-			return c.RealtimeChannel, true
-		}
-	case contract.DispatchSourceAggregate:
-		if c.AggregateChannel.Channel != "" {
-			return c.AggregateChannel, true
-		}
-	}
-
 	if c.Channel.Channel == "" {
 		return render.ChannelPolicy{}, false
 	}

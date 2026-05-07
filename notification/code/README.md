@@ -72,6 +72,8 @@
 - `system_vars` 由通知平台负责
 - `system_vars` 在渲染前由平台按消息身份加载，不写入 `DispatchMessage`
 - `tenant_id + message_type -> channel` 由通知配置侧负责
+- 默认消息配置不写 DB，由 JSON 配置源提供
+- DB/DAO 只保存租户级覆盖配置，运行时 `LoadAll` 返回合并后的生效配置
 - `email` 和 `webhook` 走本地模板资产
 - `sms` 直接使用 `templateCode + kv`
 
@@ -275,6 +277,10 @@ code/
   delivery/
     processor.go
     processor_test.go
+  dao/
+    aggregate_context.go
+    aggregate_watermark.go
+    message_config.go
   consumer/
     pulsar.go
     pulsar_test.go
