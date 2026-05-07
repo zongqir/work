@@ -49,8 +49,9 @@ type RenderInput struct {
 }
 
 func BuildTemplateContext(input RenderInput) (map[string]contract.TemplateVars, error) {
-	if len(input.BizVars) == 0 {
-		return nil, fmt.Errorf("%w: biz_vars is required", contract.ErrInvalidRequest)
+	bizVars := input.BizVars
+	if bizVars == nil {
+		bizVars = contract.TemplateVars{}
 	}
 
 	sysVars := contract.TemplateVars{
@@ -61,7 +62,7 @@ func BuildTemplateContext(input RenderInput) (map[string]contract.TemplateVars, 
 	}
 
 	return map[string]contract.TemplateVars{
-		"biz": input.BizVars,
+		"biz": bizVars,
 		"sys": sysVars,
 	}, nil
 }

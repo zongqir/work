@@ -53,7 +53,7 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 	if err != nil {
 		return err
 	}
-	if aggregateResult == nil || len(aggregateResult.BizVars) == 0 {
+	if aggregateResult == nil {
 		return nil
 	}
 

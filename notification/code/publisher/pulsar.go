@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/apache/pulsar-client-go/pulsar"
 	"work/notification/code/contract"
@@ -44,16 +45,29 @@ func (p *PulsarPublisher) Publish(ctx context.Context, msg *contract.DispatchMes
 		return err
 	}
 
-	payload, err := json.Marshal(msg)
+	producerMessage, err := buildProducerMessage(msg, time.Now())
 	if err != nil {
 		return err
 	}
 
-	_, err = producer.Send(ctx, &pulsar.ProducerMessage{
+	_, err = producer.Send(ctx, producerMessage)
+	return err
+}
+
+func buildProducerMessage(msg *contract.DispatchMessage, now time.Time) (*pulsar.ProducerMessage, error) {
+	payload, err := json.Marshal(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	producerMessage := &pulsar.ProducerMessage{
 		Payload: payload,
 		Key:     msg.TenantID,
-	})
-	return err
+	}
+	if !msg.ExpectedSendAt.IsZero() && msg.ExpectedSendAt.After(now) {
+		producerMessage.DeliverAt = msg.ExpectedSendAt
+	}
+	return producerMessage, nil
 }
 
 func (p *PulsarPublisher) Close() {

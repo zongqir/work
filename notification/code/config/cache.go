@@ -27,6 +27,9 @@ type Cache struct {
 	items      map[string]map[string]json.RawMessage
 	loadedAt   time.Time
 	refreshing bool
+	loading    bool
+	loadDone   chan struct{}
+	loadErr    error
 }
 
 func (c *Cache) Pick(
@@ -49,29 +52,56 @@ func (c *Cache) Pick(
 	ttl := c.ttl()
 	maxStale := c.maxStale()
 
-	c.mu.Lock()
-	items := c.items
-	loadedAt := c.loadedAt
-	age := now.Sub(loadedAt)
-	needsReload := items == nil || loadedAt.IsZero() || age >= maxStale
-	shouldRefresh := !needsReload && age >= ttl && !c.refreshing
-	if shouldRefresh {
-		c.refreshing = true
-	}
-	c.mu.Unlock()
+	for {
+		c.mu.Lock()
+		items := c.items
+		loadedAt := c.loadedAt
+		age := now.Sub(loadedAt)
+		needsReload := items == nil || loadedAt.IsZero() || age >= maxStale
+		shouldRefresh := !needsReload && age >= ttl && !c.refreshing
+		if needsReload && c.loading {
+			done := c.loadDone
+			c.mu.Unlock()
 
-	if needsReload {
-		all, err := loadAll(ctx)
-		if err != nil {
-			return nil, err
+			select {
+			case <-done:
+				c.mu.Lock()
+				err := c.loadErr
+				c.mu.Unlock()
+				if err != nil {
+					return nil, err
+				}
+				continue
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
 		}
-		c.store(all)
-		items = all
-	} else if shouldRefresh {
-		go c.refresh(loadAll, logError)
-	}
 
-	return pickFrom(items, tenantID, messageType), nil
+		if needsReload {
+			done := make(chan struct{})
+			c.loading = true
+			c.loadDone = done
+			c.loadErr = nil
+			c.mu.Unlock()
+
+			all, err := loadAll(ctx)
+			c.finishLoad(all, err, done)
+			if err != nil {
+				return nil, err
+			}
+			return pickFrom(all, tenantID, messageType), nil
+		}
+
+		if shouldRefresh {
+			c.refreshing = true
+		}
+		c.mu.Unlock()
+
+		if shouldRefresh {
+			go c.refresh(loadAll, logError)
+		}
+		return pickFrom(items, tenantID, messageType), nil
+	}
 }
 
 func (c *Cache) refresh(
@@ -101,6 +131,18 @@ func (c *Cache) store(items map[string]map[string]json.RawMessage) {
 	c.items = items
 	c.loadedAt = c.now()
 	c.refreshing = false
+}
+
+func (c *Cache) finishLoad(items map[string]map[string]json.RawMessage, err error, done chan struct{}) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err == nil {
+		c.items = items
+		c.loadedAt = c.now()
+	}
+	c.loading = false
+	c.loadErr = err
+	close(done)
 }
 
 func pickFrom(items map[string]map[string]json.RawMessage, tenantID, messageType string) json.RawMessage {

@@ -110,6 +110,13 @@ func (c *PulsarConsumer) handleMessage(ctx context.Context, message pulsar.Messa
 		}
 		return c.consumer.Ack(message)
 	}
+	if errors.Is(err, contract.ErrUnsupportedConfig) {
+		action = "drop_unsupported_config"
+		if c.LogError != nil {
+			c.LogError(ctx, "drop unsupported dispatch config", err)
+		}
+		return c.consumer.Ack(message)
+	}
 
 	if c.LogError != nil {
 		c.LogError(ctx, "process dispatch message failed", err)

@@ -116,6 +116,74 @@ func TestProcessSuccessWithoutCreatedAt(t *testing.T) {
 	}
 }
 
+func TestProcessUsesRealtimeChannelsForRealtimeSource(t *testing.T) {
+	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
+	sender := &stubSender{}
+	p := &Processor{
+		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
+			return sourceAwareSMSConfig(), nil
+		},
+		TemplateRoot: filepath.Join("..", "templates"),
+		Senders: map[string]ChannelSender{
+			"sms": sender,
+		},
+		Recorder: &stubRecorder{},
+		Now: func() time.Time {
+			return now
+		},
+	}
+
+	err := p.Process(context.Background(), newMessage(now))
+	if err != nil {
+		t.Fatalf("Process failed: %v", err)
+	}
+	if sender.cfg == nil {
+		t.Fatal("expected sender config")
+	}
+	if sender.cfg.TemplateKey != "commonTemplateRealtime" {
+		t.Fatalf("unexpected realtime template key: %+v", sender.cfg)
+	}
+	if len(sender.cfg.Audience.Recipients) != 1 || sender.cfg.Audience.Recipients[0] != "13111111111" {
+		t.Fatalf("unexpected realtime audience: %+v", sender.cfg.Audience)
+	}
+}
+
+func TestProcessUsesAggregateChannelsForAggregateSource(t *testing.T) {
+	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
+	sender := &stubSender{}
+	p := &Processor{
+		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
+			return sourceAwareSMSConfig(), nil
+		},
+		TemplateRoot: filepath.Join("..", "templates"),
+		Senders: map[string]ChannelSender{
+			"sms": sender,
+		},
+		Recorder: &stubRecorder{},
+		Now: func() time.Time {
+			return now
+		},
+	}
+
+	msg := newMessage(now)
+	msg.Source = contract.DispatchSourceAggregate
+	msg.IdempotencyKey = "aggregate:t_1:sample_both:202604291300"
+
+	err := p.Process(context.Background(), msg)
+	if err != nil {
+		t.Fatalf("Process failed: %v", err)
+	}
+	if sender.cfg == nil {
+		t.Fatal("expected sender config")
+	}
+	if sender.cfg.TemplateKey != "commonTemplateAggregate" {
+		t.Fatalf("unexpected aggregate template key: %+v", sender.cfg)
+	}
+	if len(sender.cfg.Audience.Recipients) != 1 || sender.cfg.Audience.Recipients[0] != "13222222222" {
+		t.Fatalf("unexpected aggregate audience: %+v", sender.cfg.Audience)
+	}
+}
+
 func TestProcessRetryOnSendFailure(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	publisher := &stubPublisher{}
@@ -224,6 +292,67 @@ func TestProcessExpired(t *testing.T) {
 	}
 }
 
+func TestProcessRecordsFailureOnUnsupportedConfig(t *testing.T) {
+	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
+	recorder := &stubRecorder{}
+	p := &Processor{
+		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
+			return &config.MessageConfig{}, nil
+		},
+		TemplateRoot: filepath.Join("..", "templates"),
+		Senders: map[string]ChannelSender{
+			"sms": &stubSender{},
+		},
+		Recorder: recorder,
+		Now: func() time.Time {
+			return now
+		},
+	}
+
+	err := p.Process(context.Background(), newMessage(now))
+	if err != nil {
+		t.Fatalf("Process failed: %v", err)
+	}
+	if recorder.record == nil {
+		t.Fatal("expected failed record")
+	}
+	if recorder.record.Status != StatusFailed {
+		t.Fatalf("expected failed, got %s", recorder.record.Status)
+	}
+	if recorder.record.ErrorMessage == "" {
+		t.Fatal("expected failure error message")
+	}
+}
+
+func TestProcessRecordsFailureOnUnsupportedSender(t *testing.T) {
+	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
+	recorder := &stubRecorder{}
+	p := &Processor{
+		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
+			return smsConfig(), nil
+		},
+		TemplateRoot: filepath.Join("..", "templates"),
+		Senders: map[string]ChannelSender{
+			"email": &stubSender{},
+		},
+		Recorder: recorder,
+		Now: func() time.Time {
+			return now
+		},
+	}
+
+	err := p.Process(context.Background(), newMessage(now))
+	if err != nil {
+		t.Fatalf("Process failed: %v", err)
+	}
+	if recorder.record == nil {
+		t.Fatal("expected failed record")
+	}
+	if recorder.record.Status != StatusFailed {
+		t.Fatalf("expected failed, got %s", recorder.record.Status)
+	}
+}
+
 func TestProcessFinalFailure(t *testing.T) {
 	now := time.Date(2026, 4, 29, 13, 0, 0, 0, time.UTC)
 	recorder := &stubRecorder{}
@@ -319,6 +448,35 @@ func smsConfig() *config.MessageConfig {
 				TemplateKey: "commonTemplate",
 				Audience: render.AudienceConfig{
 					Recipients: []string{"13111223344"},
+				},
+				Delivery: render.DeliveryConfig{
+					Platform: "ali",
+				},
+			},
+		},
+	}
+}
+
+func sourceAwareSMSConfig() *config.MessageConfig {
+	return &config.MessageConfig{
+		RealtimeChannels: []render.ChannelPolicy{
+			{
+				Channel:     "sms",
+				TemplateKey: "commonTemplateRealtime",
+				Audience: render.AudienceConfig{
+					Recipients: []string{"13111111111"},
+				},
+				Delivery: render.DeliveryConfig{
+					Platform: "ali",
+				},
+			},
+		},
+		AggregateChannels: []render.ChannelPolicy{
+			{
+				Channel:     "sms",
+				TemplateKey: "commonTemplateAggregate",
+				Audience: render.AudienceConfig{
+					Recipients: []string{"13222222222"},
 				},
 				Delivery: render.DeliveryConfig{
 					Platform: "ali",

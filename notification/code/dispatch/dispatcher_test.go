@@ -30,6 +30,10 @@ type stubLocalRealtimeHandler struct {
 	realtimeCalled bool
 }
 
+type stubEmptyAggregateHandler struct {
+	messageType string
+}
+
 type stubFilter struct {
 	K string `json:"k"`
 	X string `json:"x"`
@@ -88,6 +92,12 @@ func (h *stubSendHandler) Evaluate(_ context.Context, req *contract.RealtimeRequ
 	}, nil
 }
 
+func (h *stubEmptyAggregateHandler) MessageType() string { return h.messageType }
+func (h *stubEmptyAggregateHandler) NewFilter() any      { return nil }
+func (h *stubEmptyAggregateHandler) Aggregate(context.Context, *contract.BizAggregateRequest) (*contract.BizAggregateResult, error) {
+	return &contract.BizAggregateResult{}, nil
+}
+
 func TestSendAggregate(t *testing.T) {
 	aggregateHandler.aggregateCalled = false
 	now := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
@@ -139,6 +149,47 @@ func TestSendAggregate(t *testing.T) {
 	}
 	if !publisher.msg.ExpireAt.Equal(now.Add(30 * time.Minute)) {
 		t.Fatalf("unexpected expire_at: %v", publisher.msg.ExpireAt)
+	}
+}
+
+func TestSendAggregatePublishesEmptyBizVars(t *testing.T) {
+	now := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
+	handler := &stubEmptyAggregateHandler{messageType: "send_test_empty_aggregate"}
+	contract.MustRegisterImplementation(contract.Registration{
+		Spec:      handler,
+		Aggregate: handler,
+	})
+
+	publisher := &stubPublisher{}
+	dispatcher := &Dispatcher{
+		Publisher: publisher,
+		Now: func() time.Time {
+			return now
+		},
+		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
+			return map[string]map[string]json.RawMessage{
+				"t_1": {
+					"send_test_empty_aggregate": json.RawMessage(`{"aggregate_enabled":true}`),
+				},
+			}, nil
+		},
+	}
+
+	err := dispatcher.SendAggregate(
+		context.Background(),
+		"t_1",
+		"send_test_empty_aggregate",
+		time.Date(2026, 4, 29, 11, 0, 0, 0, time.UTC),
+		time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("SendAggregate failed: %v", err)
+	}
+	if publisher.msg == nil {
+		t.Fatal("expected message to be published")
+	}
+	if len(publisher.msg.BizVars) != 0 {
+		t.Fatalf("expected empty biz vars, got %v", publisher.msg.BizVars)
 	}
 }
 

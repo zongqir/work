@@ -8,10 +8,16 @@ import (
 	"work/notification/code/contract"
 )
 
-func TestBuildTemplateContextRejectsEmptyBizVars(t *testing.T) {
-	_, err := BuildTemplateContext(RenderInput{})
-	if !errors.Is(err, contract.ErrInvalidRequest) {
-		t.Fatalf("expected ErrInvalidRequest for empty biz vars, got %v", err)
+func TestBuildTemplateContextAllowsEmptyBizVars(t *testing.T) {
+	context, err := BuildTemplateContext(RenderInput{})
+	if err != nil {
+		t.Fatalf("BuildTemplateContext failed: %v", err)
+	}
+	if context["biz"] == nil {
+		t.Fatal("expected empty biz vars map")
+	}
+	if len(context["biz"]) != 0 {
+		t.Fatalf("expected empty biz vars, got %v", context["biz"])
 	}
 }
 

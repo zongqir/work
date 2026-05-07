@@ -9,6 +9,7 @@ import (
 	"github.com/apache/pulsar-client-go/pulsar"
 	"work/notification/code/contract"
 	"work/notification/code/dispatch"
+	"work/notification/code/handlers"
 	"work/notification/code/publisher"
 )
 
@@ -30,6 +31,8 @@ type Service struct {
 }
 
 func New(config Config) (*Service, error) {
+	handlers.Register()
+
 	if config.PulsarClientOptions.URL == "" {
 		return nil, fmt.Errorf("%w: pulsar url is required", contract.ErrInvalidRequest)
 	}

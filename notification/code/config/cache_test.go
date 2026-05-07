@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -48,5 +50,64 @@ func TestCacheAsyncRefreshUsesTimeout(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("expected async refresh timeout to be logged")
+	}
+}
+
+func TestCacheSharesConcurrentColdReload(t *testing.T) {
+	cache := Cache{
+		TTL:      5 * time.Minute,
+		MaxStale: 30 * time.Minute,
+		Now: func() time.Time {
+			return time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
+		},
+	}
+	release := make(chan struct{})
+	var calls int32
+
+	loadAll := func(context.Context) (map[string]map[string]json.RawMessage, error) {
+		atomic.AddInt32(&calls, 1)
+		<-release
+		return map[string]map[string]json.RawMessage{
+			"t_1": {
+				"send_test": json.RawMessage(`{"realtime_enabled":true}`),
+			},
+		}, nil
+	}
+
+	var wg sync.WaitGroup
+	errs := make(chan error, 5)
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			raw, err := cache.Pick(context.Background(), "t_1", "send_test", loadAll, nil)
+			if err != nil {
+				errs <- err
+				return
+			}
+			if len(raw) == 0 {
+				errs <- errors.New("expected cached config")
+			}
+		}()
+	}
+
+	deadline := time.After(time.Second)
+	for atomic.LoadInt32(&calls) == 0 {
+		select {
+		case <-deadline:
+			t.Fatal("expected load_all to be called")
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+	close(release)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("expected one load_all call, got %d", calls)
 	}
 }

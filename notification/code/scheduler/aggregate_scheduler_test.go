@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 )
@@ -144,5 +145,21 @@ func TestAggregateSchedulerTickNextWindowFromWatermark(t *testing.T) {
 	}
 	if !sender.windowEnd.Equal(time.Date(2026, 4, 29, 12, 10, 0, 0, time.UTC)) {
 		t.Fatalf("unexpected window_end: %v", sender.windowEnd)
+	}
+}
+
+func TestAggregateSchedulerRunReturnsTickErrorWithoutLogger(t *testing.T) {
+	target := errors.New("load failed")
+	scheduler := &AggregateScheduler{
+		Sender:         &stubAggregateSender{},
+		WatermarkStore: &stubAggregateWatermarkStore{},
+		LoadAll: func(context.Context) (map[string]map[string]json.RawMessage, error) {
+			return nil, target
+		},
+	}
+
+	err := scheduler.Run(context.Background())
+	if !errors.Is(err, target) {
+		t.Fatalf("expected load error, got %v", err)
 	}
 }

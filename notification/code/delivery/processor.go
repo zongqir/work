@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -105,15 +106,19 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 
 	cfg, err := p.LoadConfig(ctx, msg.TenantID, msg.MessageType)
 	if err != nil {
+		if errors.Is(err, contract.ErrUnsupportedConfig) {
+			return p.saveFailure(ctx, msg, current, err)
+		}
 		return err
 	}
-	if cfg == nil || len(cfg.Channels) == 0 {
-		return fmt.Errorf("%w: channels are required", contract.ErrUnsupportedConfig)
+	channels := cfg.ChannelsForSource(msg.Source)
+	if len(channels) == 0 {
+		return p.saveFailure(ctx, msg, current, fmt.Errorf("%w: channels are required", contract.ErrUnsupportedConfig))
 	}
 	policy := &render.EffectivePolicy{
 		TenantID:    msg.TenantID,
 		MessageType: msg.MessageType,
-		Channels:    cfg.Channels,
+		Channels:    channels,
 	}
 	renderedMessages, err := render.Render(render.RenderInput{
 		TenantID:    msg.TenantID,
@@ -123,13 +128,13 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 		BizVars:     msg.BizVars,
 	}, policy, p.TemplateRoot)
 	if err != nil {
-		return err
+		return p.saveFailure(ctx, msg, current, err)
 	}
 	for idx, channel := range renderedMessages {
-		channelCfg := cfg.Channels[idx]
+		channelCfg := channels[idx]
 		sender, ok := p.Senders[channel.Channel]
 		if !ok {
-			return fmt.Errorf("%w: unsupported channel sender: %s", contract.ErrUnsupportedConfig, channel.Channel)
+			return p.saveFailure(ctx, msg, current, fmt.Errorf("%w: unsupported channel sender: %s", contract.ErrUnsupportedConfig, channel.Channel))
 		}
 		err = sender.Send(ctx, msg, channelCfg, channel)
 		if err != nil {
@@ -150,13 +155,7 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 				retry.ExpectedSendAt = current.Add(retryDelay)
 				return p.Publisher.Publish(ctx, &retry)
 			}
-			record := *msg
-			return p.Recorder.Save(ctx, &SendRecord{
-				DispatchMessage: record,
-				Status:          StatusFailed,
-				ErrorMessage:    err.Error(),
-				UpdatedAt:       current,
-			})
+			return p.saveFailure(ctx, msg, current, err)
 		}
 	}
 
@@ -164,6 +163,16 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 	return p.Recorder.Save(ctx, &SendRecord{
 		DispatchMessage: record,
 		Status:          StatusSuccess,
+		UpdatedAt:       current,
+	})
+}
+
+func (p *Processor) saveFailure(ctx context.Context, msg *contract.DispatchMessage, current time.Time, err error) error {
+	record := *msg
+	return p.Recorder.Save(ctx, &SendRecord{
+		DispatchMessage: record,
+		Status:          StatusFailed,
+		ErrorMessage:    err.Error(),
 		UpdatedAt:       current,
 	})
 }

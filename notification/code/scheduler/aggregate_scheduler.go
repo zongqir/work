@@ -44,7 +44,10 @@ func (s *AggregateScheduler) Run(ctx context.Context) error {
 		interval = time.Minute
 	}
 
-	if err := s.Tick(ctx); err != nil && s.LogError != nil {
+	if err := s.Tick(ctx); err != nil {
+		if s.LogError == nil {
+			return err
+		}
 		s.LogError(ctx, "aggregate scheduler tick failed", err)
 	}
 
@@ -56,7 +59,10 @@ func (s *AggregateScheduler) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			if err := s.Tick(ctx); err != nil && s.LogError != nil {
+			if err := s.Tick(ctx); err != nil {
+				if s.LogError == nil {
+					return err
+				}
 				s.LogError(ctx, "aggregate scheduler tick failed", err)
 			}
 		}

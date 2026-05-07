@@ -14,7 +14,28 @@ type MessageConfig struct {
 	AggregateEnabled       bool                   `json:"aggregate_enabled"`
 	Filter                 json.RawMessage        `json:"filter"`
 	AggregatePeriodMinutes int                    `json:"aggregate_period_minutes"`
+	RealtimeChannels       []render.ChannelPolicy `json:"realtime_channels"`
+	AggregateChannels      []render.ChannelPolicy `json:"aggregate_channels"`
 	Channels               []render.ChannelPolicy `json:"channels"`
+}
+
+func (c *MessageConfig) ChannelsForSource(source string) []render.ChannelPolicy {
+	if c == nil {
+		return nil
+	}
+
+	switch source {
+	case contract.DispatchSourceRealtime:
+		if len(c.RealtimeChannels) > 0 {
+			return c.RealtimeChannels
+		}
+	case contract.DispatchSourceAggregate:
+		if len(c.AggregateChannels) > 0 {
+			return c.AggregateChannels
+		}
+	}
+
+	return c.Channels
 }
 
 func ParseMessageConfig(raw json.RawMessage) (*MessageConfig, error) {
@@ -24,7 +45,7 @@ func ParseMessageConfig(raw json.RawMessage) (*MessageConfig, error) {
 
 	var cfg MessageConfig
 	if err := json.Unmarshal(raw, &cfg); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: parse message config: %v", contract.ErrUnsupportedConfig, err)
 	}
 	return &cfg, nil
 }

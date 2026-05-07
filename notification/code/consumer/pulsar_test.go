@@ -146,6 +146,26 @@ func TestHandleMessageAckOnInvalidRequest(t *testing.T) {
 	}
 }
 
+func TestHandleMessageAckOnUnsupportedConfig(t *testing.T) {
+	rawConsumer := &stubConsumer{}
+	c := &PulsarConsumer{
+		consumer: rawConsumer,
+		processor: &stubProcessor{
+			err: contract.ErrUnsupportedConfig,
+		},
+	}
+
+	err := c.handleMessage(context.Background(), &stubMessage{
+		payload: []byte(`{"idempotency_key":"k","tenant_id":"t","message_type":"m","expected_send_at":"2026-05-07T00:00:00Z","expire_at":"2026-05-07T01:00:00Z"}`),
+	})
+	if err != nil {
+		t.Fatalf("handleMessage failed: %v", err)
+	}
+	if rawConsumer.acked != 1 || rawConsumer.nacked != 0 {
+		t.Fatalf("expected ack=1 nack=0, got ack=%d nack=%d", rawConsumer.acked, rawConsumer.nacked)
+	}
+}
+
 func TestHandleMessageNackOnTemporaryFailure(t *testing.T) {
 	rawConsumer := &stubConsumer{}
 	c := &PulsarConsumer{
