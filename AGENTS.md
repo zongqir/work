@@ -19,4 +19,5 @@ Recent commits in this repository use short, minimal subjects, so keep commit me
 
 ## Agent Notes
 Treat `notification/code/README.md` and the package tests as the source of truth for current behavior. Avoid adding new abstractions unless they reduce complexity in the existing dispatch/render pipeline.
+Prefer the simplest implementation that satisfies the current requirement: if a solution can be expressed in roughly 50 lines, do not build a 200-line abstraction or framework. Do not design for imagined future extensibility unless the user explicitly asks for it or the current code already has a proven extension point.
 
