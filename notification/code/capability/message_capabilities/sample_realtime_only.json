@@ -1,0 +1,19 @@
+{
+  "message_type": "sample_realtime_only",
+  "realtime_supported": true,
+  "aggregate_supported": false,
+  "channels": [
+    {
+      "channel": "email",
+      "label": "Email"
+    }
+  ],
+  "filter_fields": [
+    {
+      "name": "severity",
+      "label": "Severity",
+      "type": "string_array",
+      "options": ["low", "medium", "high", "critical"]
+    }
+  ]
+}

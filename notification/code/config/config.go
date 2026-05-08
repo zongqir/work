@@ -82,6 +82,14 @@ type MessageConfigLoader struct {
 }
 
 func (l *MessageConfigLoader) Load(ctx context.Context, tenantID, messageType string) (*MessageConfig, error) {
+	item, err := l.LoadRecord(ctx, tenantID, messageType)
+	if err != nil {
+		return nil, err
+	}
+	return runtimeMessageConfig(item), nil
+}
+
+func (l *MessageConfigLoader) LoadRecord(ctx context.Context, tenantID, messageType string) (*model.MessageConfig, error) {
 	if l == nil {
 		return nil, fmt.Errorf("%w: message_config_loader is required", contract.ErrInvalidRequest)
 	}
@@ -98,11 +106,19 @@ func (l *MessageConfigLoader) Load(ctx context.Context, tenantID, messageType st
 			return nil, err
 		}
 		if cfg, ok := findMessageConfig(items, messageType); ok {
-			return runtimeMessageConfig(cfg), nil
+			item := *cfg
+			if item.TenantID == "" {
+				item.TenantID = tenantID
+			}
+			return &item, nil
 		}
 	}
 	if cfg, ok := findMessageConfig(l.Defaults, messageType); ok {
-		return runtimeMessageConfig(cfg), nil
+		item := *cfg
+		if item.TenantID == "" {
+			item.TenantID = tenantID
+		}
+		return &item, nil
 	}
 
 	return nil, fmt.Errorf("%w: message config not found: %s", contract.ErrUnsupportedConfig, messageType)

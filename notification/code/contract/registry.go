@@ -3,6 +3,7 @@ package contract
 import (
 	"context"
 	"fmt"
+	"sort"
 )
 
 var registeredImplementations = map[string]Registration{}
@@ -69,6 +70,15 @@ func ResolveAggregate(messageType string) (MessageTypeSpec, AggregateProvider, e
 		return nil, nil, fmt.Errorf("%w: aggregate provider is not implemented for %s", ErrCapabilityNotImplemented, messageType)
 	}
 	return registration.Spec, registration.AggregateProvider, nil
+}
+
+func RegisteredMessageTypes() []string {
+	items := make([]string, 0, len(registeredImplementations))
+	for messageType := range registeredImplementations {
+		items = append(items, messageType)
+	}
+	sort.Strings(items)
+	return items
 }
 
 func register(registration Registration) {

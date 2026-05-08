@@ -1,0 +1,10 @@
+{
+  "directives": [
+    {
+      "directive": "Notification message capability metadata must be a source for backend validation as well as frontend rendering. Capability JSON cannot be display-only; save/update APIs must validate incoming fields against declared capability to prevent arbitrary Postman writes.",
+      "priority": "high",
+      "context": "user asked to remember validation requirement for capability schema",
+      "timestamp": "2026-05-08T03:12:35.326Z"
+    }
+  ]
+}

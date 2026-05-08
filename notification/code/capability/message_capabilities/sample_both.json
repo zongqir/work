@@ -1,0 +1,29 @@
+{
+  "message_type": "sample_both",
+  "realtime_supported": true,
+  "aggregate_supported": true,
+  "aggregate_period_minutes": [60],
+  "channels": [
+    {
+      "channel": "email",
+      "label": "Email"
+    },
+    {
+      "channel": "webhook",
+      "label": "Webhook"
+    }
+  ],
+  "filter_fields": [
+    {
+      "name": "severity",
+      "label": "Severity",
+      "type": "string_array",
+      "options": ["low", "medium", "high", "critical"]
+    },
+    {
+      "name": "sample_limit",
+      "label": "Sample Limit",
+      "type": "integer"
+    }
+  ]
+}
