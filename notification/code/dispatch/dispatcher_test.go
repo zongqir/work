@@ -155,7 +155,7 @@ func TestSendAggregate(t *testing.T) {
 	}
 }
 
-func TestSendAggregatePublishesEmptyBizVars(t *testing.T) {
+func TestSendAggregateSkipsPublishForEmptyBizVars(t *testing.T) {
 	now := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
 	handler := &stubEmptyAggregateHandler{messageType: "send_test_empty_aggregate"}
 	contract.MustRegisterImplementation(contract.Registration{
@@ -189,13 +189,10 @@ func TestSendAggregatePublishesEmptyBizVars(t *testing.T) {
 		t.Fatalf("SendAggregate failed: %v", err)
 	}
 	if !sent {
-		t.Fatal("expected aggregate message to be sent")
+		t.Fatal("expected aggregate window to be processed")
 	}
-	if publisher.msg == nil {
-		t.Fatal("expected message to be published")
-	}
-	if len(publisher.msg.BizVars) != 0 {
-		t.Fatalf("expected empty biz vars, got %v", publisher.msg.BizVars)
+	if publisher.msg != nil {
+		t.Fatal("did not expect message to be published")
 	}
 }
 

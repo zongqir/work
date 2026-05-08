@@ -29,6 +29,8 @@ type Dispatcher struct {
 	cache config.Cache
 }
 
+// SendAggregate returns true once the aggregate window has been handled,
+// even if the handler produced no biz vars and nothing was published.
 func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) (bool, error) {
 	spec, aggregate, err := contract.ResolveAggregate(messageType)
 	if err != nil {
@@ -55,8 +57,8 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 	if err != nil {
 		return false, err
 	}
-	if aggregateResult == nil {
-		return false, nil
+	if aggregateResult == nil || len(aggregateResult.BizVars) == 0 {
+		return true, nil
 	}
 
 	now := time.Now
