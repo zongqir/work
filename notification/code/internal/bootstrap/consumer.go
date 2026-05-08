@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/apache/pulsar-client-go/pulsar"
-	configpkg "work/notification/code/config"
-	"work/notification/code/consumer"
+	configpkg "work/notification/code/internal/config"
+	"work/notification/code/internal/consumer"
 	"work/notification/code/contract"
-	"work/notification/code/delivery"
-	"work/notification/code/delivery/channels"
+	"work/notification/code/internal/delivery"
+	"work/notification/code/internal/delivery/channels"
 )
 
 type ConsumerConfig struct {

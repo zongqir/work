@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"work/notification/code/render"
+	"work/notification/code/internal/render"
 )
 
 func TestSenderSend(t *testing.T) {

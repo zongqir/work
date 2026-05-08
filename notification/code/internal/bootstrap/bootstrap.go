@@ -10,7 +10,7 @@ import (
 	"work/notification/code/contract"
 	"work/notification/code/dispatch"
 	"work/notification/code/handlers"
-	"work/notification/code/publisher"
+	"work/notification/code/internal/publisher"
 )
 
 type Config struct {

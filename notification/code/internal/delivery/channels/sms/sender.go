@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"work/notification/code/contract"
-	"work/notification/code/delivery/channels/common"
-	"work/notification/code/render"
+	"work/notification/code/internal/delivery/channels/common"
+	"work/notification/code/internal/render"
 )
 
 const requestPath = "/xdr/NOTIFICATION/INNER/api/v1/sms/notification"

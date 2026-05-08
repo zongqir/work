@@ -9,7 +9,7 @@ import (
 
 	"github.com/apache/pulsar-client-go/pulsar"
 	"work/notification/code/contract"
-	"work/notification/code/metrics"
+	"work/notification/code/internal/metrics"
 )
 
 type Processor interface {

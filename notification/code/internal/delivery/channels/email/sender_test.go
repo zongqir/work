@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"work/notification/code/contract"
-	"work/notification/code/render"
+	"work/notification/code/internal/render"
 )
 
 func TestSenderSend(t *testing.T) {

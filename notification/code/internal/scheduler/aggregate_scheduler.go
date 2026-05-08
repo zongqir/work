@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"work/notification/code/config"
+	"work/notification/code/internal/config"
 	"work/notification/code/contract"
-	"work/notification/code/dao"
+	"work/notification/code/internal/dao"
 )
 
 type AggregateSender interface {

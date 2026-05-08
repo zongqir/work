@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"work/notification/code/contract"
-	"work/notification/code/dao"
+	"work/notification/code/internal/dao"
 	"work/notification/code/model"
-	"work/notification/code/render"
+	"work/notification/code/internal/render"
 )
 
 type MessageConfig struct {

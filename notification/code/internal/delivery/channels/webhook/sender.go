@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"work/notification/code/contract"
-	"work/notification/code/delivery/channels/common"
-	"work/notification/code/render"
+	"work/notification/code/internal/delivery/channels/common"
+	"work/notification/code/internal/render"
 )
 
 type Sender struct {

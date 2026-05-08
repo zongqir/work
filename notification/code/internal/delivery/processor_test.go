@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"work/notification/code/config"
 	"work/notification/code/contract"
-	"work/notification/code/render"
+	"work/notification/code/internal/config"
+	"work/notification/code/internal/render"
 )
 
 type stubSender struct {
@@ -52,7 +52,7 @@ func TestProcessSuccess(t *testing.T) {
 		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
 			return smsConfig(), nil
 		},
-		TemplateRoot: filepath.Join("..", "templates"),
+		TemplateRoot: filepath.Join("..", "..", "templates"),
 		Senders: map[string]ChannelSender{
 			"sms": sender,
 		},
@@ -94,7 +94,7 @@ func TestProcessSuccessWithoutCreatedAt(t *testing.T) {
 		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
 			return smsConfig(), nil
 		},
-		TemplateRoot: filepath.Join("..", "templates"),
+		TemplateRoot: filepath.Join("..", "..", "templates"),
 		Senders: map[string]ChannelSender{
 			"sms": sender,
 		},
@@ -123,7 +123,7 @@ func TestProcessUsesSameChannelForRealtimeSource(t *testing.T) {
 		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
 			return sharedSMSConfig(), nil
 		},
-		TemplateRoot: filepath.Join("..", "templates"),
+		TemplateRoot: filepath.Join("..", "..", "templates"),
 		Senders: map[string]ChannelSender{
 			"sms": sender,
 		},
@@ -155,7 +155,7 @@ func TestProcessUsesSameChannelForAggregateSource(t *testing.T) {
 		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
 			return sharedSMSConfig(), nil
 		},
-		TemplateRoot: filepath.Join("..", "templates"),
+		TemplateRoot: filepath.Join("..", "..", "templates"),
 		Senders: map[string]ChannelSender{
 			"sms": sender,
 		},
@@ -199,7 +199,7 @@ func TestProcessLoadsSystemVarsForRendering(t *testing.T) {
 				"tenant_name": "租户A",
 			}, nil
 		},
-		TemplateRoot: filepath.Join("..", "templates"),
+		TemplateRoot: filepath.Join("..", "..", "templates"),
 		Senders: map[string]ChannelSender{
 			"sms": sender,
 		},
@@ -229,7 +229,7 @@ func TestProcessRetryOnSendFailure(t *testing.T) {
 		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
 			return smsConfig(), nil
 		},
-		TemplateRoot: filepath.Join("..", "templates"),
+		TemplateRoot: filepath.Join("..", "..", "templates"),
 		Senders: map[string]ChannelSender{
 			"sms": &stubSender{
 				err: errors.New("send failed"),
@@ -267,7 +267,7 @@ func TestProcessBeforeExpectedSendAt(t *testing.T) {
 		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
 			return smsConfig(), nil
 		},
-		TemplateRoot: filepath.Join("..", "templates"),
+		TemplateRoot: filepath.Join("..", "..", "templates"),
 		Senders: map[string]ChannelSender{
 			"sms": &stubSender{},
 		},
@@ -297,7 +297,7 @@ func TestProcessExpired(t *testing.T) {
 		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
 			return smsConfig(), nil
 		},
-		TemplateRoot: filepath.Join("..", "templates"),
+		TemplateRoot: filepath.Join("..", "..", "templates"),
 		Senders: map[string]ChannelSender{
 			"sms": &stubSender{},
 		},
@@ -329,7 +329,7 @@ func TestProcessRecordsFailureOnUnsupportedConfig(t *testing.T) {
 		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
 			return &config.MessageConfig{}, nil
 		},
-		TemplateRoot: filepath.Join("..", "templates"),
+		TemplateRoot: filepath.Join("..", "..", "templates"),
 		Senders: map[string]ChannelSender{
 			"sms": &stubSender{},
 		},
@@ -361,7 +361,7 @@ func TestProcessRecordsFailureOnUnsupportedSender(t *testing.T) {
 		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
 			return smsConfig(), nil
 		},
-		TemplateRoot: filepath.Join("..", "templates"),
+		TemplateRoot: filepath.Join("..", "..", "templates"),
 		Senders: map[string]ChannelSender{
 			"email": &stubSender{},
 		},
@@ -391,7 +391,7 @@ func TestProcessRecordsFailureOnPermanentSenderError(t *testing.T) {
 		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
 			return smsConfig(), nil
 		},
-		TemplateRoot: filepath.Join("..", "templates"),
+		TemplateRoot: filepath.Join("..", "..", "templates"),
 		Senders: map[string]ChannelSender{
 			"sms": &stubSender{
 				err: contract.ErrInvalidRequest,
@@ -426,7 +426,7 @@ func TestProcessFinalFailure(t *testing.T) {
 		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
 			return smsConfig(), nil
 		},
-		TemplateRoot: filepath.Join("..", "templates"),
+		TemplateRoot: filepath.Join("..", "..", "templates"),
 		Senders: map[string]ChannelSender{
 			"sms": &stubSender{
 				err: errors.New("send failed"),
@@ -461,7 +461,7 @@ func TestProcessThirdRetryStillPublishes(t *testing.T) {
 		LoadConfig: func(context.Context, string, string) (*config.MessageConfig, error) {
 			return smsConfig(), nil
 		},
-		TemplateRoot: filepath.Join("..", "templates"),
+		TemplateRoot: filepath.Join("..", "..", "templates"),
 		Senders: map[string]ChannelSender{
 			"sms": &stubSender{
 				err: errors.New("send failed"),

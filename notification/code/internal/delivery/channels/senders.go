@@ -3,11 +3,11 @@ package channels
 import (
 	"net/http"
 
-	"work/notification/code/delivery"
-	"work/notification/code/delivery/channels/email"
-	"work/notification/code/delivery/channels/sms"
-	"work/notification/code/delivery/channels/webhook"
-	"work/notification/code/delivery/channels/wecom"
+	"work/notification/code/internal/delivery"
+	"work/notification/code/internal/delivery/channels/email"
+	"work/notification/code/internal/delivery/channels/sms"
+	"work/notification/code/internal/delivery/channels/webhook"
+	"work/notification/code/internal/delivery/channels/wecom"
 )
 
 func NewSenders(httpClient *http.Client, baseURL string) map[string]delivery.ChannelSender {

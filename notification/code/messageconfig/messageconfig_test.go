@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"work/notification/code/config"
+	"work/notification/code/internal/config"
 	"work/notification/code/model"
 )
 

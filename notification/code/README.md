@@ -96,9 +96,9 @@
 
 统一分发入口见 [dispatcher.go](/C:/Users/Administrator/code/work/notification/code/dispatch/dispatcher.go:1)。
 
-默认启动入口见 [bootstrap.go](/C:/Users/Administrator/code/work/notification/code/bootstrap/bootstrap.go:1)。
+服务装配入口见 [app.go](/C:/Users/Administrator/code/work/notification/code/apps/notificationd/app.go:1)。
 
-最小消费者入口见 [pulsar.go](/C:/Users/Administrator/code/work/notification/code/consumer/pulsar.go:1)。
+最小消费者入口见 [pulsar.go](/C:/Users/Administrator/code/work/notification/code/internal/consumer/pulsar.go:1)。
 
 简单模式接入时，外部不需要自己构建 `Publisher`，只需要准备：
 
@@ -109,19 +109,21 @@
 最小示例：
 
 ```go
-svc, err := bootstrap.New(bootstrap.Config{
-    PulsarClientOptions: pulsar.ClientOptions{
-        URL: "pulsar://127.0.0.1:6650",
+app, err := notificationd.New(notificationd.Config{
+    Dispatcher: &bootstrap.Config{
+        PulsarClientOptions: pulsar.ClientOptions{
+            URL: "pulsar://127.0.0.1:6650",
+        },
+        Topic:   "persistent://public/default/aes-dispatch",
+        LoadAll: loadAllConfigs,
     },
-    Topic:   "persistent://public/default/aes-dispatch",
-    LoadAll: loadAllConfigs,
 })
 if err != nil {
     return err
 }
-defer svc.Close()
+defer app.Close()
 
-err = svc.SendRealtime(ctx, tenantID, messageType, event)
+err = app.Dispatcher().SendRealtime(ctx, tenantID, messageType, event)
 ```
 
 如果确实要自己控制底层依赖，就直接构建 `Dispatcher`：
@@ -239,20 +241,22 @@ Prometheus 接入口径：
 最小示例：
 
 ```go
-svc, err := bootstrap.New(bootstrap.Config{
-    PulsarClientOptions: pulsar.ClientOptions{
-        URL: "pulsar://127.0.0.1:6650",
+app, err := notificationd.New(notificationd.Config{
+    Dispatcher: &bootstrap.Config{
+        PulsarClientOptions: pulsar.ClientOptions{
+            URL: "pulsar://127.0.0.1:6650",
+        },
+        Topic:   "persistent://public/default/aes-dispatch",
+        LoadAll: loadAllConfigs,
     },
-    Topic:   "persistent://public/default/aes-dispatch",
-    LoadAll: loadAllConfigs,
+    Metrics: &notificationd.MetricsConfig{
+        Addr: ":8080",
+    },
 })
 if err != nil {
     return err
 }
-defer svc.Close()
-
-mux := http.NewServeMux()
-mux.Handle("/metrics", metrics.Handler())
+defer app.Close()
 ```
 
 当前代码里已经去掉几层没必要的包装：
@@ -264,26 +268,14 @@ mux.Handle("/metrics", metrics.Handler())
 
 ```text
 code/
-  bootstrap/
-    bootstrap.go
-  config/
-    cache.go
-    cache_test.go
-    config.go
+  apps/
+    notificationd/
+      app.go
+      app_test.go
   contract/
     contract.go
     types.go
     registry_test.go
-  delivery/
-    processor.go
-    processor_test.go
-  dao/
-    aggregate_context.go
-    aggregate_watermark.go
-    message_config.go
-  consumer/
-    pulsar.go
-    pulsar_test.go
   dispatch/
     dispatcher.go
     dispatcher_test.go
@@ -291,22 +283,39 @@ code/
     sample_both/
       handler.go
       handler_test.go
-  sample_request.json
-  sample_result.json
-  sample_policy.json
+  internal/
+    bootstrap/
+      bootstrap.go
+      consumer.go
+    config/
+      cache.go
+      config.go
+    consumer/
+      pulsar.go
+    dao/
+      aggregate_context.go
+      aggregate_watermark.go
+      message_config.go
+    delivery/
+      processor.go
+      channels/
+    metrics/
+      metrics.go
+    publisher/
+      pulsar.go
+    render/
+      policy.go
+      renderer.go
+    scheduler/
+      aggregate_scheduler.go
+  messageconfig/
+    messageconfig.go
+  model/
+    message_config.go
+    message_capability.go
   preview/
     preview.go
     preview_test.go
-  publisher/
-    pulsar.go
-  render/
-    policy.go
-    renderer.go
-    renderer_test.go
-    template_cache.go
-  scheduler/
-    aggregate_scheduler.go
-    aggregate_scheduler_test.go
   templates/
     email/
       sample_both_default.subject.tmpl
