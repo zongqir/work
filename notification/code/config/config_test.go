@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"work/notification/code/dao"
 	"work/notification/code/model"
 	"work/notification/code/render"
 )
@@ -16,7 +15,7 @@ type stubTenantMessageConfigStore struct {
 	err   error
 }
 
-func (s *stubTenantMessageConfigStore) ListTenantMessageConfigs(context.Context, string, dao.MessageConfigQuery) ([]model.MessageConfig, error) {
+func (s *stubTenantMessageConfigStore) ListTenantMessageConfigs(context.Context, string) ([]model.MessageConfig, error) {
 	return s.items, s.err
 }
 

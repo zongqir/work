@@ -3,7 +3,6 @@ package config
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 
@@ -94,8 +93,8 @@ func (l *MessageConfigLoader) Load(ctx context.Context, tenantID, messageType st
 	}
 
 	if l.Store != nil {
-		items, err := l.Store.ListTenantMessageConfigs(ctx, tenantID, dao.MessageConfigQuery{MessageType: messageType})
-		if err != nil && !errors.Is(err, dao.ErrNotFound) {
+		items, err := l.Store.ListTenantMessageConfigs(ctx, tenantID)
+		if err != nil {
 			return nil, err
 		}
 		if cfg, ok := findMessageConfig(items, messageType); ok {

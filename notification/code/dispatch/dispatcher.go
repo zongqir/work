@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 
 	"work/notification/code/config"
@@ -27,8 +26,7 @@ type Dispatcher struct {
 	AggregateExpireAfter time.Duration
 	Now                  func() time.Time
 
-	cacheOnce sync.Once
-	cache     config.Cache
+	cache config.Cache
 }
 
 func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) (bool, error) {
@@ -163,18 +161,12 @@ func (d *Dispatcher) loadConfig(ctx context.Context, tenantID, messageType strin
 		return nil, fmt.Errorf("%w: message_type is required", contract.ErrInvalidRequest)
 	}
 
-	d.ensureCache()
+	d.cache.TTL = d.CacheTTL
+	d.cache.MaxStale = d.CacheMaxStale
+	if d.Now != nil {
+		d.cache.Now = d.Now
+	}
 	return config.LoadMessageConfig(ctx, tenantID, messageType, &d.cache, d.LoadAll, d.LogError)
-}
-
-func (d *Dispatcher) ensureCache() {
-	d.cacheOnce.Do(func() {
-		d.cache.TTL = d.CacheTTL
-		d.cache.MaxStale = d.CacheMaxStale
-		if d.Now != nil {
-			d.cache.Now = d.Now
-		}
-	})
 }
 
 func parseHandlerPayload(spec contract.MessageTypeSpec, target any, raw json.RawMessage) (any, error) {
