@@ -3,7 +3,7 @@ package samplerealtimeonly
 import (
 	"context"
 
-	"work/notification/code/contract"
+	"work/notification/code/pkg/notification"
 )
 
 type Handler struct{}
@@ -20,7 +20,7 @@ type Event struct {
 
 func init() {
 	handler := &Handler{}
-	contract.MustRegisterImplementation(contract.Registration{
+	notification.MustRegisterImplementation(notification.Registration{
 		Spec:              handler,
 		RealtimeEvaluator: handler,
 	})
@@ -34,21 +34,21 @@ func (h *Handler) NewFilter() any {
 	return &Filter{}
 }
 
-func (h *Handler) Evaluate(_ context.Context, req *contract.RealtimeRequest) (*contract.RealtimeResult, error) {
+func (h *Handler) Evaluate(_ context.Context, req *notification.RealtimeRequest) (*notification.RealtimeResult, error) {
 	filter, _ := req.Filter.(*Filter)
 	event, _ := req.Event.(*Event)
 
 	if event == nil {
-		return &contract.RealtimeResult{Matched: false}, nil
+		return &notification.RealtimeResult{Matched: false}, nil
 	}
 	if !contains(filter, event.Severity) {
-		return &contract.RealtimeResult{Matched: false}, nil
+		return &notification.RealtimeResult{Matched: false}, nil
 	}
 
-	return &contract.RealtimeResult{
+	return &notification.RealtimeResult{
 		Matched:        true,
 		IdempotencyKey: event.EventID,
-		BizVars: contract.TemplateVars{
+		BizVars: notification.TemplateVars{
 			"title":    event.Title,
 			"severity": event.Severity,
 		},

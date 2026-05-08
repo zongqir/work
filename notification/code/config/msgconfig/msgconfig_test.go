@@ -1,11 +1,11 @@
-package messageconfig
+package msgconfig
 
 import (
 	"context"
 	"testing"
 
-	"work/notification/code/internal/config"
-	"work/notification/code/model"
+	"work/notification/code/config"
+	"work/notification/code/internal/model"
 )
 
 func TestLoaderLoadView(t *testing.T) {

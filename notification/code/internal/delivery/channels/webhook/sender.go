@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"work/notification/code/contract"
 	"work/notification/code/internal/delivery/channels/common"
 	"work/notification/code/internal/render"
+	"work/notification/code/pkg/notification/contract"
 )
 
 type Sender struct {

@@ -3,7 +3,7 @@ package sampleaggregateonly
 import (
 	"context"
 
-	"work/notification/code/contract"
+	"work/notification/code/pkg/notification"
 )
 
 type Handler struct{}
@@ -14,7 +14,7 @@ type Filter struct {
 
 func init() {
 	handler := &Handler{}
-	contract.MustRegisterImplementation(contract.Registration{
+	notification.MustRegisterImplementation(notification.Registration{
 		Spec:              handler,
 		AggregateProvider: handler,
 	})
@@ -28,7 +28,7 @@ func (h *Handler) NewFilter() any {
 	return &Filter{}
 }
 
-func (h *Handler) Aggregate(_ context.Context, req *contract.BizAggregateRequest) (*contract.BizAggregateResult, error) {
+func (h *Handler) Aggregate(_ context.Context, req *notification.BizAggregateRequest) (*notification.BizAggregateResult, error) {
 	filter, _ := req.Filter.(*Filter)
 
 	severityCount := 0
@@ -36,8 +36,8 @@ func (h *Handler) Aggregate(_ context.Context, req *contract.BizAggregateRequest
 		severityCount = len(filter.Severity)
 	}
 
-	return &contract.BizAggregateResult{
-		BizVars: contract.TemplateVars{
+	return &notification.BizAggregateResult{
+		BizVars: notification.TemplateVars{
 			"severity_count": severityCount,
 		},
 	}, nil

@@ -1,6 +1,6 @@
 package render
 
-import "work/notification/code/model"
+import "work/notification/code/internal/model"
 
 type EffectivePolicy struct {
 	TenantID    string        `json:"tenant_id"`

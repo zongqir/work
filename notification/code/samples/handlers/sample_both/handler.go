@@ -3,7 +3,7 @@ package sampleboth
 import (
 	"context"
 
-	"work/notification/code/contract"
+	"work/notification/code/pkg/notification"
 )
 
 type Handler struct{}
@@ -18,7 +18,7 @@ type RealtimeEvent struct {
 }
 
 func init() {
-	contract.MustRegister(&Handler{})
+	notification.MustRegister(&Handler{})
 }
 
 func (h *Handler) MessageType() string {
@@ -29,18 +29,18 @@ func (h *Handler) NewFilter() any {
 	return &Filter{}
 }
 
-func (h *Handler) Aggregate(_ context.Context, req *contract.BizAggregateRequest) (*contract.BizAggregateResult, error) {
+func (h *Handler) Aggregate(_ context.Context, req *notification.BizAggregateRequest) (*notification.BizAggregateResult, error) {
 	filter, _ := req.Filter.(*Filter)
 	_ = filter
 
-	return &contract.BizAggregateResult{
-		BizVars: contract.TemplateVars{
+	return &notification.BizAggregateResult{
+		BizVars: notification.TemplateVars{
 			// business fills vars here
 		},
 	}, nil
 }
 
-func (h *Handler) Evaluate(_ context.Context, req *contract.RealtimeRequest) (*contract.RealtimeResult, error) {
+func (h *Handler) Evaluate(_ context.Context, req *notification.RealtimeRequest) (*notification.RealtimeResult, error) {
 	filter, _ := req.Filter.(*Filter)
 	_ = filter
 
@@ -51,10 +51,10 @@ func (h *Handler) Evaluate(_ context.Context, req *contract.RealtimeRequest) (*c
 		idempotencyKey = event.EventID
 	}
 
-	return &contract.RealtimeResult{
+	return &notification.RealtimeResult{
 		Matched:        true,
 		IdempotencyKey: idempotencyKey,
-		BizVars:        contract.TemplateVars{
+		BizVars:        notification.TemplateVars{
 			// business fills vars here
 		},
 	}, nil

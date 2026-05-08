@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/apache/pulsar-client-go/pulsar"
-	"work/notification/code/contract"
 	"work/notification/code/internal/delivery"
+	"work/notification/code/pkg/notification/contract"
 )
 
 type stubRecorder struct{}

@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"work/notification/code/contract"
-	"work/notification/code/internal/config"
+	"work/notification/code/config"
 	"work/notification/code/internal/render"
+	"work/notification/code/pkg/notification/contract"
 )
 
 type stubSender struct {

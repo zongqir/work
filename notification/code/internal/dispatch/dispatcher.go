@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"work/notification/code/internal/config"
-	"work/notification/code/contract"
+	"work/notification/code/config"
+	"work/notification/code/pkg/notification/contract"
 )
 
 // MessagePublisher 由平台提供，负责把命中的实时结果发布出去。

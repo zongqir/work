@@ -77,7 +77,7 @@
 - `email` 和 `webhook` 走本地模板资产
 - `sms` 直接使用 `templateCode + kv`
 
-生产级契约入口见 [contract.go](/C:/Users/Administrator/code/work/notification/code/contract/contract.go:1) 和 [types.go](/C:/Users/Administrator/code/work/notification/code/contract/types.go:1)：
+对外 SDK 入口见 [pkg/notification](/C:/Users/Administrator/code/work/notification/code/pkg/notification/notification.go:1) 和 [pkg/notification/capability](/C:/Users/Administrator/code/work/notification/code/pkg/notification/capability/capability.go:1)：
 
 - `Handler`：业务方必须实现的最小接口
 - `MessageType()`：业务方自己定义消息标识
@@ -94,7 +94,7 @@
 - `ErrTemporaryFailure`：临时失败，可由调用方决定是否重试
 - `ErrHandlerNotFound`：运行时没有找到对应 `message_type` 的实现
 
-统一分发入口见 [dispatcher.go](/C:/Users/Administrator/code/work/notification/code/dispatch/dispatcher.go:1)。
+统一分发入口见 [dispatcher.go](/C:/Users/Administrator/code/work/notification/code/internal/dispatch/dispatcher.go:1)。
 
 服务装配入口见 [app.go](/C:/Users/Administrator/code/work/notification/code/apps/notificationd/app.go:1)。
 
@@ -186,19 +186,19 @@ dispatcher := &dispatch.Dispatcher{
 - 过期：直接写过期记录，不再发送
 - 当前不引入死信队列，记录表就是最终失败落点
 
-正式业务实现统一放在 `handlers/`：
+样例业务实现统一放在 `samples/handlers/`：
 
 - 每个 `message_type` 一个子目录
 - 每个子目录只有一个 `handler.go`
 - 一个 `Handler` 同时实现：
   `MessageType()`、`NewFilter()`、`Aggregate(...)`、`Evaluate(...)`
-- `contract` 包统一按 `message_type` 注册和查找
+- `pkg/notification/contract` 包统一按 `message_type` 注册和查找
 
-共享契约统一放在 `contract/` 目录里，不放进 `handlers/`。原因很简单：
+共享契约统一放在 `pkg/notification/contract/` 目录里，不放进 `samples/handlers/`。原因很简单：
 
 - 它描述的是 AES 和业务方共享的契约
 - 不是某个具体实现目录的私有代码
-- `handlers/` 只放实现和注册，职责更清楚
+- `samples/handlers/` 只放示例实现和注册，职责更清楚
 
 这种方式的作用是：
 
@@ -220,16 +220,17 @@ dispatcher := &dispatch.Dispatcher{
 
 当前包职责：
 
-- `contract/`：共享契约
+- `pkg/notification/contract/`：共享契约
 - `config/`：分发配置模型和配置缓存
-- `dao/`：平台持久化对象和接口，例如聚合上下文、水位
-- `render/`：生效策略和模板渲染
-- `delivery/`：消费侧策略加载、模板渲染、发送重试和记录
-- `publisher/`：消息发布实现
-- `consumer/`：Pulsar 消费和 `Processor.Process(...)` 接线
-- `dispatch/`：配置驱动的消息分发
-- `scheduler/`：聚合定时调度
-- `metrics/`：Prometheus 指标采集和 `/metrics` handler
+- `internal/model/`：平台内部持久化对象和配置模型
+- `internal/dao/`：平台持久化对象和接口，例如聚合上下文、水位
+- `internal/render/`：生效策略和模板渲染
+- `internal/delivery/`：消费侧策略加载、模板渲染、发送重试和记录
+- `internal/publisher/`：消息发布实现
+- `internal/consumer/`：Pulsar 消费和 `Processor.Process(...)` 接线
+- `internal/dispatch/`：配置驱动的消息分发
+- `internal/scheduler/`：聚合定时调度
+- `internal/metrics/`：Prometheus 指标采集和 `/metrics` handler
 
 Prometheus 接入口径：
 
@@ -272,33 +273,53 @@ code/
     notificationd/
       app.go
       app_test.go
-  contract/
-    contract.go
-    types.go
-    registry_test.go
-  dispatch/
-    dispatcher.go
-    dispatcher_test.go
-  handlers/
-    sample_both/
-      handler.go
-      handler_test.go
+  pkg/
+    notification/
+      notification.go
+      contract/
+        contract.go
+        types.go
+        registry_test.go
+      capability/
+        capability.go
+  samples/
+    handlers/
+      sample_both/
+        handler.go
+        handler_test.go
   internal/
+    dispatch/
+      dispatcher.go
+      dispatcher_test.go
     bootstrap/
       bootstrap.go
       consumer.go
-    config/
-      cache.go
-      config.go
     consumer/
       pulsar.go
     dao/
       aggregate_context.go
       aggregate_watermark.go
       message_config.go
+    model/
+      message_capability.go
+      message_config.go
     delivery/
       processor.go
       channels/
+        common/
+          http.go
+        email/
+          sender.go
+          sender_test.go
+        sms/
+          sender.go
+          sender_test.go
+        webhook/
+          sender.go
+          sender_test.go
+        wecom/
+          sender.go
+          sender_test.go
     metrics/
       metrics.go
     publisher/
@@ -306,13 +327,14 @@ code/
     render/
       policy.go
       renderer.go
+      template_cache.go
     scheduler/
       aggregate_scheduler.go
-  messageconfig/
-    messageconfig.go
-  model/
-    message_config.go
-    message_capability.go
+  config/
+    cache.go
+    config.go
+    msgconfig/
+      msgconfig.go
   preview/
     preview.go
     preview_test.go

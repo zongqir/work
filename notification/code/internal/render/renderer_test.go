@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"work/notification/code/contract"
+	"work/notification/code/pkg/notification/contract"
 )
 
 func TestBuildTemplateContextAllowsEmptyBizVars(t *testing.T) {

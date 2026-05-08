@@ -3,7 +3,7 @@ package dao
 import (
 	"context"
 
-	"work/notification/code/model"
+	"work/notification/code/internal/model"
 )
 
 type TenantMessageConfigStore interface {

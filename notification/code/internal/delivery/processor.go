@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"work/notification/code/internal/config"
-	"work/notification/code/contract"
+	"work/notification/code/config"
 	"work/notification/code/internal/render"
+	"work/notification/code/pkg/notification/contract"
 )
 
 type ChannelSender interface {

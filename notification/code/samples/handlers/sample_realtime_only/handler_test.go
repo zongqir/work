@@ -4,13 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"work/notification/code/contract"
+	"work/notification/code/pkg/notification"
 )
 
 func TestHandlerEvaluateMatched(t *testing.T) {
 	h := &Handler{}
 
-	result, err := h.Evaluate(context.Background(), &contract.RealtimeRequest{
+	result, err := h.Evaluate(context.Background(), &notification.RealtimeRequest{
 		Filter: &Filter{
 			Severity: []string{"high"},
 		},
@@ -34,7 +34,7 @@ func TestHandlerEvaluateMatched(t *testing.T) {
 func TestHandlerEvaluateUnmatched(t *testing.T) {
 	h := &Handler{}
 
-	result, err := h.Evaluate(context.Background(), &contract.RealtimeRequest{
+	result, err := h.Evaluate(context.Background(), &notification.RealtimeRequest{
 		Filter: &Filter{
 			Severity: []string{"critical"},
 		},

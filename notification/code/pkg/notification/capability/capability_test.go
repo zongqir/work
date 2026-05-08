@@ -7,11 +7,10 @@ import (
 	"testing/fstest"
 	"time"
 
-	"work/notification/code/contract"
-	_ "work/notification/code/handlers/sample_aggregate_only"
-	_ "work/notification/code/handlers/sample_both"
-	_ "work/notification/code/handlers/sample_realtime_only"
-	"work/notification/code/model"
+	_ "work/notification/code/samples/handlers/sample_aggregate_only"
+	_ "work/notification/code/samples/handlers/sample_both"
+	_ "work/notification/code/samples/handlers/sample_realtime_only"
+	"work/notification/code/pkg/notification/contract"
 )
 
 func TestLoadAllUsesMessageTypeFromJSON(t *testing.T) {
@@ -47,7 +46,7 @@ func TestAllCoversRegisteredMessageTypes(t *testing.T) {
 		t.Fatal("expected capabilities")
 	}
 
-	byType := map[string]model.MessageCapability{}
+	byType := map[string]MessageCapability{}
 	for _, item := range items {
 		byType[item.MessageType] = item
 	}
@@ -60,16 +59,16 @@ func TestAllCoversRegisteredMessageTypes(t *testing.T) {
 }
 
 func TestValidateConfigAcceptsSupportedConfig(t *testing.T) {
-	err := ValidateConfig(&model.MessageConfig{
+	err := ValidateConfig(&MessageConfig{
 		MessageType:            "sample_both",
 		RealtimeEnabled:        true,
 		AggregateEnabled:       true,
 		AggregatePeriodMinutes: 60,
 		Filter:                 json.RawMessage(`{"severity":["high","critical"],"sample_limit":3}`),
-		Channel: model.ChannelPolicy{
+		Channel: ChannelPolicy{
 			Channel:      "email",
 			TemplateCode: "sample_both_default",
-			Audience: model.AudienceConfig{
+			Audience: AudienceConfig{
 				To: []string{"owner@example.com"},
 			},
 		},
@@ -80,14 +79,14 @@ func TestValidateConfigAcceptsSupportedConfig(t *testing.T) {
 }
 
 func TestValidateConfigRejectsUnsupportedFilterField(t *testing.T) {
-	err := ValidateConfig(&model.MessageConfig{
+	err := ValidateConfig(&MessageConfig{
 		MessageType:     "sample_both",
 		RealtimeEnabled: true,
 		Filter:          json.RawMessage(`{"tenant_name":"x"}`),
-		Channel: model.ChannelPolicy{
+		Channel: ChannelPolicy{
 			Channel:      "email",
 			TemplateCode: "sample_both_default",
-			Audience:     model.AudienceConfig{To: []string{"owner@example.com"}},
+			Audience:     AudienceConfig{To: []string{"owner@example.com"}},
 		},
 	})
 	if !errors.Is(err, contract.ErrUnsupportedConfig) {
@@ -96,14 +95,14 @@ func TestValidateConfigRejectsUnsupportedFilterField(t *testing.T) {
 }
 
 func TestValidateConfigRejectsInvalidFilterValue(t *testing.T) {
-	err := ValidateConfig(&model.MessageConfig{
+	err := ValidateConfig(&MessageConfig{
 		MessageType:     "sample_both",
 		RealtimeEnabled: true,
 		Filter:          json.RawMessage(`{"severity":["unknown"]}`),
-		Channel: model.ChannelPolicy{
+		Channel: ChannelPolicy{
 			Channel:      "email",
 			TemplateCode: "sample_both_default",
-			Audience:     model.AudienceConfig{To: []string{"owner@example.com"}},
+			Audience:     AudienceConfig{To: []string{"owner@example.com"}},
 		},
 	})
 	if !errors.Is(err, contract.ErrUnsupportedConfig) {
@@ -112,14 +111,14 @@ func TestValidateConfigRejectsInvalidFilterValue(t *testing.T) {
 }
 
 func TestValidateConfigRejectsUnsupportedMode(t *testing.T) {
-	err := ValidateConfig(&model.MessageConfig{
+	err := ValidateConfig(&MessageConfig{
 		MessageType:            "sample_realtime_only",
 		AggregateEnabled:       true,
 		AggregatePeriodMinutes: 60,
-		Channel: model.ChannelPolicy{
+		Channel: ChannelPolicy{
 			Channel:      "email",
 			TemplateCode: "sample_realtime_only_default",
-			Audience:     model.AudienceConfig{To: []string{"owner@example.com"}},
+			Audience:     AudienceConfig{To: []string{"owner@example.com"}},
 		},
 	})
 	if !errors.Is(err, contract.ErrUnsupportedConfig) {
@@ -128,10 +127,10 @@ func TestValidateConfigRejectsUnsupportedMode(t *testing.T) {
 }
 
 func TestValidateConfigRejectsUnsupportedChannel(t *testing.T) {
-	err := ValidateConfig(&model.MessageConfig{
+	err := ValidateConfig(&MessageConfig{
 		MessageType:     "sample_both",
 		RealtimeEnabled: true,
-		Channel: model.ChannelPolicy{
+		Channel: ChannelPolicy{
 			Channel:      "sms",
 			TemplateCode: "sample_both_default",
 		},
@@ -142,13 +141,13 @@ func TestValidateConfigRejectsUnsupportedChannel(t *testing.T) {
 }
 
 func TestValidateConfigRejectsExternalMetadata(t *testing.T) {
-	err := ValidateConfig(&model.MessageConfig{
+	err := ValidateConfig(&MessageConfig{
 		MessageType:     "sample_both",
 		RealtimeEnabled: true,
-		Channel: model.ChannelPolicy{
+		Channel: ChannelPolicy{
 			Channel:      "email",
 			TemplateCode: "sample_both_default",
-			Audience:     model.AudienceConfig{To: []string{"owner@example.com"}},
+			Audience:     AudienceConfig{To: []string{"owner@example.com"}},
 		},
 		UpdatedBy: "user",
 		UpdatedAt: time.Now(),
@@ -159,10 +158,10 @@ func TestValidateConfigRejectsExternalMetadata(t *testing.T) {
 }
 
 func TestValidateConfigRejectsMissingEmailAudience(t *testing.T) {
-	err := ValidateConfig(&model.MessageConfig{
+	err := ValidateConfig(&MessageConfig{
 		MessageType:     "sample_both",
 		RealtimeEnabled: true,
-		Channel:         model.ChannelPolicy{Channel: "email", TemplateCode: "sample_both_default"},
+		Channel:         ChannelPolicy{Channel: "email", TemplateCode: "sample_both_default"},
 	})
 	if !errors.Is(err, contract.ErrUnsupportedConfig) {
 		t.Fatalf("expected unsupported config, got %v", err)

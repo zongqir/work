@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"os"
 
-	"work/notification/code/contract"
 	"work/notification/code/internal/dao"
-	"work/notification/code/model"
+	"work/notification/code/internal/model"
 	"work/notification/code/internal/render"
+	"work/notification/code/pkg/notification/contract"
 )
 
 type MessageConfig struct {

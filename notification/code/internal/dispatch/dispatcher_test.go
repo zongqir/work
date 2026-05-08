@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"work/notification/code/contract"
+	"work/notification/code/pkg/notification/contract"
 )
 
 type stubPublisher struct {

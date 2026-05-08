@@ -4,13 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"work/notification/code/contract"
+	"work/notification/code/pkg/notification"
 )
 
 func TestHandlerAggregate(t *testing.T) {
 	h := &Handler{}
 
-	result, err := h.Aggregate(context.Background(), &contract.BizAggregateRequest{})
+	result, err := h.Aggregate(context.Background(), &notification.BizAggregateRequest{})
 	if err != nil {
 		t.Fatalf("Aggregate failed: %v", err)
 	}
@@ -22,7 +22,7 @@ func TestHandlerAggregate(t *testing.T) {
 func TestHandlerEvaluate(t *testing.T) {
 	h := &Handler{}
 
-	decision, err := h.Evaluate(context.Background(), &contract.RealtimeRequest{
+	decision, err := h.Evaluate(context.Background(), &notification.RealtimeRequest{
 		Event: &RealtimeEvent{EventID: "evt-1"},
 	})
 	if err != nil {

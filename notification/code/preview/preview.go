@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"os"
 
-	"work/notification/code/contract"
 	"work/notification/code/internal/render"
+	"work/notification/code/pkg/notification/contract"
 )
 
 type Result struct {

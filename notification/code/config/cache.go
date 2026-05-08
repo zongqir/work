@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"work/notification/code/contract"
+	"work/notification/code/pkg/notification/contract"
 )
 
 const (

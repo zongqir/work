@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"work/notification/code/internal/model"
 	"work/notification/code/internal/render"
-	"work/notification/code/model"
 )
 
 type stubTenantMessageConfigStore struct {
@@ -78,7 +78,7 @@ func TestMessageConfigEffectiveChannel(t *testing.T) {
 }
 
 func TestLoadDefaultMessageConfigsFromFile(t *testing.T) {
-	items, err := LoadDefaultMessageConfigsFromFile(filepath.Join("..", "..", "default_message_configs.json"))
+	items, err := LoadDefaultMessageConfigsFromFile(filepath.Join("..", "default_message_configs.json"))
 	if err != nil {
 		t.Fatalf("LoadDefaultMessageConfigsFromFile failed: %v", err)
 	}

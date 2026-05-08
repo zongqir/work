@@ -10,8 +10,7 @@ import (
 	"strings"
 
 	"github.com/xeipuuv/gojsonschema"
-	"work/notification/code/contract"
-	"work/notification/code/model"
+	"work/notification/code/pkg/notification/contract"
 )
 
 const channelPolicySchemaID = "https://notification.local/schema/channel_policy.json"
@@ -20,23 +19,23 @@ const channelPolicySchemaID = "https://notification.local/schema/channel_policy.
 var defaultCapabilityFS embed.FS
 
 type definition struct {
-	Capability model.MessageCapability
+	Capability MessageCapability
 	Schema     json.RawMessage
 }
 
-func All() ([]model.MessageCapability, error) {
+func All() ([]MessageCapability, error) {
 	defs, err := loadAll(defaultCapabilityFS)
 	if err != nil {
 		return nil, err
 	}
-	items := make([]model.MessageCapability, 0, len(defs))
+	items := make([]MessageCapability, 0, len(defs))
 	for _, def := range defs {
 		items = append(items, def.Capability)
 	}
 	return items, nil
 }
 
-func Get(messageType string) (*model.MessageCapability, error) {
+func Get(messageType string) (*MessageCapability, error) {
 	def, err := getDefinition(messageType)
 	if err != nil {
 		return nil, err
@@ -45,7 +44,7 @@ func Get(messageType string) (*model.MessageCapability, error) {
 	return &item, nil
 }
 
-func ValidateConfig(item *model.MessageConfig) error {
+func ValidateConfig(item *MessageConfig) error {
 	if item == nil {
 		return fmt.Errorf("%w: message config is required", contract.ErrInvalidRequest)
 	}
@@ -95,7 +94,7 @@ func loadAll(fsys fs.FS) ([]definition, error) {
 			return nil, fmt.Errorf("%w: read schema %s: %v", contract.ErrUnsupportedConfig, schemaPath, err)
 		}
 
-		var item model.MessageCapability
+		var item MessageCapability
 		if err := json.Unmarshal(capabilityRaw, &item); err != nil {
 			return nil, fmt.Errorf("%w: parse capability %s: %v", contract.ErrUnsupportedConfig, capabilityPath, err)
 		}
@@ -156,7 +155,7 @@ func findCapabilityFiles(fsys fs.FS) ([]string, error) {
 	return files, nil
 }
 
-func normalizeCapability(item *model.MessageCapability, source string) error {
+func normalizeCapability(item *MessageCapability, source string) error {
 	if item == nil {
 		return fmt.Errorf("%w: capability is required", contract.ErrInvalidRequest)
 	}
@@ -185,7 +184,7 @@ func normalizeCapability(item *model.MessageCapability, source string) error {
 	return nil
 }
 
-func validationInputFromConfig(item *model.MessageConfig) validationInput {
+func validationInputFromConfig(item *MessageConfig) validationInput {
 	return validationInput{
 		TenantID:               item.TenantID,
 		MessageType:            item.MessageType,
@@ -219,11 +218,11 @@ func compileSchema(schemaRaw json.RawMessage, messageType string) (*gojsonschema
 }
 
 type validationInput struct {
-	TenantID               string              `json:"tenant_id,omitempty"`
-	MessageType            string              `json:"message_type"`
-	RealtimeEnabled        bool                `json:"realtime_enabled"`
-	AggregateEnabled       bool                `json:"aggregate_enabled"`
-	AggregatePeriodMinutes int                 `json:"aggregate_period_minutes,omitempty"`
-	Filter                 json.RawMessage     `json:"filter,omitempty"`
-	Channel                model.ChannelPolicy `json:"channel"`
+	TenantID               string        `json:"tenant_id,omitempty"`
+	MessageType            string        `json:"message_type"`
+	RealtimeEnabled        bool          `json:"realtime_enabled"`
+	AggregateEnabled       bool          `json:"aggregate_enabled"`
+	AggregatePeriodMinutes int           `json:"aggregate_period_minutes,omitempty"`
+	Filter                 json.RawMessage `json:"filter,omitempty"`
+	Channel                ChannelPolicy `json:"channel"`
 }

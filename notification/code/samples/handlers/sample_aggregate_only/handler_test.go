@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"work/notification/code/contract"
+	"work/notification/code/pkg/notification"
 )
 
 func TestHandlerAggregate(t *testing.T) {
 	h := &Handler{}
 
-	result, err := h.Aggregate(context.Background(), &contract.BizAggregateRequest{
+	result, err := h.Aggregate(context.Background(), &notification.BizAggregateRequest{
 		WindowStart: time.Date(2026, 4, 29, 11, 0, 0, 0, time.UTC),
 		WindowEnd:   time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC),
 		Filter: &Filter{

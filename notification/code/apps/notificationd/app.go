@@ -9,14 +9,13 @@ import (
 	"time"
 
 	"github.com/apache/pulsar-client-go/pulsar"
-	"work/notification/code/contract"
-	"work/notification/code/dispatch"
-	"work/notification/code/handlers"
 	"work/notification/code/internal/bootstrap"
 	"work/notification/code/internal/dao"
+	"work/notification/code/internal/dispatch"
 	"work/notification/code/internal/metrics"
 	"work/notification/code/internal/publisher"
 	"work/notification/code/internal/scheduler"
+	"work/notification/code/pkg/notification/contract"
 )
 
 const defaultShutdownTimeout = 5 * time.Second
@@ -53,8 +52,6 @@ func New(config Config) (*App, error) {
 	if config.Dispatcher == nil && config.Consumer == nil && config.Scheduler == nil && config.Metrics == nil {
 		return nil, fmt.Errorf("%w: at least one app component is required", contract.ErrInvalidRequest)
 	}
-
-	handlers.Register()
 
 	app := &App{}
 
