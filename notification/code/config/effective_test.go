@@ -2,27 +2,22 @@ package config
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"work/notification/code/dao"
-	"work/notification/code/render"
+	"work/notification/code/model"
 )
 
 type stubTenantMessageConfigStore struct {
-	item *dao.TenantMessageConfig
-	err  error
+	items []model.MessageConfig
+	err   error
 }
 
-func (s *stubTenantMessageConfigStore) ListTenantMessageConfigs(context.Context, string, dao.MessageConfigQuery) ([]dao.TenantMessageConfig, error) {
-	return nil, nil
+func (s *stubTenantMessageConfigStore) ListTenantMessageConfigs(context.Context, string, dao.MessageConfigQuery) ([]model.MessageConfig, error) {
+	return s.items, s.err
 }
 
-func (s *stubTenantMessageConfigStore) GetTenantMessageConfig(context.Context, string, string) (*dao.TenantMessageConfig, error) {
-	return s.item, s.err
-}
-
-func (s *stubTenantMessageConfigStore) SaveTenantMessageConfig(context.Context, *dao.TenantMessageConfig) error {
+func (s *stubTenantMessageConfigStore) SaveTenantMessageConfig(context.Context, *model.MessageConfig) error {
 	return nil
 }
 
@@ -32,9 +27,15 @@ func (s *stubTenantMessageConfigStore) DeleteTenantMessageConfig(context.Context
 
 func TestMessageConfigLoaderFallsBackToDefault(t *testing.T) {
 	loader := &MessageConfigLoader{
-		Store: &stubTenantMessageConfigStore{err: dao.ErrNotFound},
-		Default: func(context.Context, string) (json.RawMessage, error) {
-			return json.RawMessage(`{"channel":{"channel":"sms","template_code":"base"}}`), nil
+		Store: &stubTenantMessageConfigStore{},
+		Defaults: []model.MessageConfig{
+			{
+				MessageType: "m_1",
+				Channel: model.ChannelPolicy{
+					Channel:      "sms",
+					TemplateCode: "base",
+				},
+			},
 		},
 	}
 	cfg, err := loader.Load(context.Background(), "t_1", "m_1")
@@ -52,18 +53,30 @@ func TestMessageConfigLoaderFallsBackToDefault(t *testing.T) {
 func TestMessageConfigLoaderUsesTenantRecordDirectly(t *testing.T) {
 	loader := &MessageConfigLoader{
 		Store: &stubTenantMessageConfigStore{
-			item: &dao.TenantMessageConfig{
-				RealtimeEnabled:        false,
-				AggregateEnabled:       false,
-				AggregatePeriodMinutes: 15,
-				Channel: render.ChannelPolicy{
-					Channel:      "email",
-					TemplateCode: "tenant",
+			items: []model.MessageConfig{
+				{
+					MessageType:            "m_1",
+					RealtimeEnabled:        false,
+					AggregateEnabled:       false,
+					AggregatePeriodMinutes: 15,
+					Channel: model.ChannelPolicy{
+						Channel:      "email",
+						TemplateCode: "tenant",
+					},
 				},
 			},
 		},
-		Default: func(context.Context, string) (json.RawMessage, error) {
-			return json.RawMessage(`{"realtime_enabled":true,"aggregate_enabled":true,"aggregate_period_minutes":30,"channel":{"channel":"sms","template_code":"base"}}`), nil
+		Defaults: []model.MessageConfig{
+			{
+				MessageType:            "m_1",
+				RealtimeEnabled:        true,
+				AggregateEnabled:       true,
+				AggregatePeriodMinutes: 30,
+				Channel: model.ChannelPolicy{
+					Channel:      "sms",
+					TemplateCode: "base",
+				},
+			},
 		},
 	}
 	cfg, err := loader.Load(context.Background(), "t_1", "m_1")

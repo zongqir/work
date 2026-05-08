@@ -2,19 +2,18 @@ package config
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
 	"work/notification/code/contract"
 	"work/notification/code/dao"
+	"work/notification/code/model"
+	"work/notification/code/render"
 )
 
-type DefaultMessageConfigLoader func(ctx context.Context, messageType string) (json.RawMessage, error)
-
 type MessageConfigLoader struct {
-	Default DefaultMessageConfigLoader
-	Store   dao.TenantMessageConfigStore
+	Defaults []model.MessageConfig
+	Store    dao.TenantMessageConfigStore
 }
 
 func (l *MessageConfigLoader) Load(ctx context.Context, tenantID, messageType string) (*MessageConfig, error) {
@@ -28,33 +27,32 @@ func (l *MessageConfigLoader) Load(ctx context.Context, tenantID, messageType st
 		return nil, fmt.Errorf("%w: message_type is required", contract.ErrInvalidRequest)
 	}
 
-	var tenantCfg *dao.TenantMessageConfig
 	if l.Store != nil {
-		var err error
-		tenantCfg, err = l.Store.GetTenantMessageConfig(ctx, tenantID, messageType)
-		if err != nil {
-			if !errorsIsNotFound(err) {
-				return nil, err
-			}
-			tenantCfg = nil
+		items, err := l.Store.ListTenantMessageConfigs(ctx, tenantID, dao.MessageConfigQuery{MessageType: messageType})
+		if err != nil && !errorsIsNotFound(err) {
+			return nil, err
+		}
+		if cfg, ok := findMessageConfig(items, messageType); ok {
+			return messageConfigFromTenantRecord(cfg), nil
 		}
 	}
-	if tenantCfg != nil {
-		return messageConfigFromTenantRecord(tenantCfg), nil
-	}
-	if l.Default == nil {
-		return nil, fmt.Errorf("%w: default config loader is required", contract.ErrInvalidRequest)
+	if cfg, ok := findMessageConfig(l.Defaults, messageType); ok {
+		return messageConfigFromTenantRecord(cfg), nil
 	}
 
-	baseRaw, err := l.Default(ctx, messageType)
-	if err != nil {
-		return nil, err
-	}
-
-	return ParseMessageConfig(baseRaw)
+	return nil, fmt.Errorf("%w: message config not found: %s", contract.ErrUnsupportedConfig, messageType)
 }
 
-func messageConfigFromTenantRecord(item *dao.TenantMessageConfig) *MessageConfig {
+func findMessageConfig(items []model.MessageConfig, messageType string) (*model.MessageConfig, bool) {
+	for i := range items {
+		if items[i].MessageType == messageType {
+			return &items[i], true
+		}
+	}
+	return nil, false
+}
+
+func messageConfigFromTenantRecord(item *model.MessageConfig) *MessageConfig {
 	if item == nil {
 		return nil
 	}
@@ -63,7 +61,29 @@ func messageConfigFromTenantRecord(item *dao.TenantMessageConfig) *MessageConfig
 		AggregateEnabled:       item.AggregateEnabled,
 		AggregatePeriodMinutes: item.AggregatePeriodMinutes,
 		Filter:                 item.Filter,
-		Channel:                item.Channel,
+		Channel:                renderChannelPolicy(item.Channel),
+	}
+}
+
+func renderChannelPolicy(channel model.ChannelPolicy) render.ChannelPolicy {
+	return render.ChannelPolicy{
+		Channel:      channel.Channel,
+		TemplateCode: channel.TemplateCode,
+		TemplateKey:  channel.TemplateKey,
+		Audience: render.AudienceConfig{
+			To:         channel.Audience.To,
+			Cc:         channel.Audience.Cc,
+			Bcc:        channel.Audience.Bcc,
+			Recipients: channel.Audience.Recipients,
+			Phone:      channel.Audience.Phone,
+		},
+		Delivery: render.DeliveryConfig{
+			Platform: channel.Delivery.Platform,
+			Secret:   channel.Delivery.Secret,
+			AgentID:  channel.Delivery.AgentID,
+			URL:      channel.Delivery.URL,
+			Headers:  channel.Delivery.Headers,
+		},
 	}
 }
 

@@ -1,5 +1,6 @@
-{
-  "sample_both": {
+[
+  {
+    "message_type": "sample_both",
     "realtime_enabled": true,
     "aggregate_enabled": true,
     "aggregate_period_minutes": 60,
@@ -8,7 +9,8 @@
       "template_code": "sample_both_default"
     }
   },
-  "sample_realtime_only": {
+  {
+    "message_type": "sample_realtime_only",
     "realtime_enabled": true,
     "aggregate_enabled": false,
     "channel": {
@@ -16,7 +18,8 @@
       "template_code": "sample_realtime_only_default"
     }
   },
-  "sample_aggregate_only": {
+  {
+    "message_type": "sample_aggregate_only",
     "realtime_enabled": false,
     "aggregate_enabled": true,
     "aggregate_period_minutes": 60,
@@ -25,4 +28,4 @@
       "template_code": "sample_aggregate_only_default"
     }
   }
-}
+]
