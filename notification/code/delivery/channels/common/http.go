@@ -11,41 +11,18 @@ import (
 	"strings"
 )
 
-type Client struct {
-	httpClient *http.Client
-	baseURL    string
-}
-
-func NewClient(httpClient *http.Client, baseURL string) *Client {
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
-	return &Client{
-		httpClient: httpClient,
-		baseURL:    strings.TrimRight(baseURL, "/"),
-	}
-}
-
-func (c *Client) PostJSON(ctx context.Context, requestPath string, payload any, headers map[string]string) error {
+func PostJSON(ctx context.Context, httpClient *http.Client, requestURL string, payload any, headers map[string]string) error {
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("marshal request failed: %w", err)
 	}
-	return c.post(ctx, c.resolve(requestPath), "application/json", data, headers)
+	return Post(ctx, httpClient, requestURL, "application/json", data, headers)
 }
 
-func (c *Client) Post(ctx context.Context, targetURL, contentType string, body []byte, headers map[string]string) error {
-	return c.post(ctx, targetURL, contentType, body, headers)
-}
-
-func (c *Client) resolve(requestPath string) string {
-	if c.baseURL == "" {
-		return requestPath
+func Post(ctx context.Context, httpClient *http.Client, targetURL, contentType string, body []byte, headers map[string]string) error {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
 	}
-	return c.baseURL + "/" + strings.TrimLeft(requestPath, "/")
-}
-
-func (c *Client) post(ctx context.Context, targetURL, contentType string, body []byte, headers map[string]string) error {
 	if _, err := url.ParseRequestURI(targetURL); err != nil {
 		return fmt.Errorf("invalid target url %q: %w", targetURL, err)
 	}
@@ -61,7 +38,7 @@ func (c *Client) post(ctx context.Context, targetURL, contentType string, body [
 		req.Header.Set(key, value)
 	}
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}

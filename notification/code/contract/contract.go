@@ -19,6 +19,7 @@ type DelayError struct {
 	Delay time.Duration
 }
 
+// DelayError carries the retry delay so the consumer can reconsume the message later.
 func (e *DelayError) Error() string {
 	if e == nil || e.Err == nil {
 		return "delayed"
@@ -80,7 +81,7 @@ type Handler interface {
 }
 
 type Registration struct {
-	Spec      MessageTypeSpec
-	Realtime  RealtimeEvaluator
-	Aggregate AggregateProvider
+	Spec              MessageTypeSpec
+	RealtimeEvaluator RealtimeEvaluator
+	AggregateProvider AggregateProvider
 }

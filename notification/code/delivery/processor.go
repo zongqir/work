@@ -56,7 +56,10 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 		return err
 	}
 
-	current := p.now()
+	current := time.Now()
+	if p.Now != nil {
+		current = p.Now()
+	}
 
 	if current.Before(msg.ExpectedSendAt) {
 		return &contract.DelayError{
@@ -188,13 +191,6 @@ func (p *Processor) saveStatus(ctx context.Context, msg *contract.DispatchMessag
 		ErrorMessage:    errorMessage,
 		UpdatedAt:       current,
 	})
-}
-
-func (p *Processor) now() time.Time {
-	if p.Now != nil {
-		return p.Now()
-	}
-	return time.Now()
 }
 
 func (p *Processor) maxRetry() int {

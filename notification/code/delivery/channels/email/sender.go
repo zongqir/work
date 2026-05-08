@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"work/notification/code/contract"
 	"work/notification/code/delivery/channels/common"
@@ -13,7 +14,8 @@ import (
 const requestPath = "/xdr/NOTIFICATION/INNER/api/v1/mail/notification"
 
 type Sender struct {
-	client *common.Client
+	httpClient *http.Client
+	baseURL    string
 }
 
 type request struct {
@@ -29,7 +31,8 @@ type request struct {
 
 func NewSender(httpClient *http.Client, baseURL string) *Sender {
 	return &Sender{
-		client: common.NewClient(httpClient, baseURL),
+		httpClient: httpClient,
+		baseURL:    strings.TrimRight(baseURL, "/"),
 	}
 }
 
@@ -38,7 +41,14 @@ func (s *Sender) Send(ctx context.Context, msg *contract.DispatchMessage, cfg re
 	if err != nil {
 		return err
 	}
-	return s.client.PostJSON(ctx, requestPath, req, nil)
+	return common.PostJSON(ctx, s.httpClient, s.requestURL(requestPath), req, nil)
+}
+
+func (s *Sender) requestURL(path string) string {
+	if s.baseURL == "" {
+		return path
+	}
+	return s.baseURL + "/" + strings.TrimLeft(path, "/")
 }
 
 func buildRequest(msg *contract.DispatchMessage, cfg render.ChannelPolicy, rendered render.RenderedChannelMessage) (*request, error) {

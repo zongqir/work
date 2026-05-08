@@ -21,8 +21,8 @@ type Event struct {
 func init() {
 	handler := &Handler{}
 	contract.MustRegisterImplementation(contract.Registration{
-		Spec:     handler,
-		Realtime: handler,
+		Spec:              handler,
+		RealtimeEvaluator: handler,
 	})
 }
 

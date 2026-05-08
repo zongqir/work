@@ -15,8 +15,8 @@ type Filter struct {
 func init() {
 	handler := &Handler{}
 	contract.MustRegisterImplementation(contract.Registration{
-		Spec:      handler,
-		Aggregate: handler,
+		Spec:              handler,
+		AggregateProvider: handler,
 	})
 }
 

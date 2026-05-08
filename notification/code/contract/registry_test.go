@@ -79,8 +79,8 @@ func TestMustRegisterImplementationSharesSpec(t *testing.T) {
 
 	spec := stubSpec("realtime_only")
 	MustRegisterImplementation(Registration{
-		Spec:     spec,
-		Realtime: stubRealtimeOnly{},
+		Spec:              spec,
+		RealtimeEvaluator: stubRealtimeOnly{},
 	})
 
 	resolvedSpec, realtime, err := ResolveRealtime("realtime_only")

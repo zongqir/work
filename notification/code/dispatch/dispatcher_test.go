@@ -159,8 +159,8 @@ func TestSendAggregatePublishesEmptyBizVars(t *testing.T) {
 	now := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
 	handler := &stubEmptyAggregateHandler{messageType: "send_test_empty_aggregate"}
 	contract.MustRegisterImplementation(contract.Registration{
-		Spec:      handler,
-		Aggregate: handler,
+		Spec:              handler,
+		AggregateProvider: handler,
 	})
 
 	publisher := &stubPublisher{}
@@ -303,8 +303,8 @@ func TestSendRealtimeWithRealtimeOnlyRegistration(t *testing.T) {
 	now := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
 	handler := &stubLocalRealtimeHandler{messageType: "send_test_local"}
 	contract.MustRegisterImplementation(contract.Registration{
-		Spec:     handler,
-		Realtime: handler,
+		Spec:              handler,
+		RealtimeEvaluator: handler,
 	})
 
 	publisher := &stubPublisher{}

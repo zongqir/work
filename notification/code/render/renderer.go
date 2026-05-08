@@ -214,7 +214,6 @@ func renderTextTemplate(templatePath string, input any) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("load template failed: %w", err)
 	}
-
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, input); err != nil {
 		return "", fmt.Errorf("render template failed: %w", err)

@@ -11,12 +11,12 @@ import (
 )
 
 type Sender struct {
-	client *common.Client
+	httpClient *http.Client
 }
 
 func NewSender(httpClient *http.Client) *Sender {
 	return &Sender{
-		client: common.NewClient(httpClient, ""),
+		httpClient: httpClient,
 	}
 }
 
@@ -28,8 +28,9 @@ func (s *Sender) Send(ctx context.Context, msg *contract.DispatchMessage, cfg re
 	if cfg.Delivery.URL == "" {
 		return fmt.Errorf("%w: webhook delivery.url is required", contract.ErrInvalidRequest)
 	}
-	return s.client.Post(
+	return common.Post(
 		ctx,
+		s.httpClient,
 		cfg.Delivery.URL,
 		"text/plain; charset=utf-8",
 		[]byte(rendered.Webhook.Content),

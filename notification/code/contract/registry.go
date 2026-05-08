@@ -16,10 +16,10 @@ func MustRegister(spec MessageTypeSpec) {
 		Spec: spec,
 	}
 	if realtime, ok := spec.(RealtimeEvaluator); ok {
-		registration.Realtime = realtime
+		registration.RealtimeEvaluator = realtime
 	}
 	if aggregate, ok := spec.(AggregateProvider); ok {
-		registration.Aggregate = aggregate
+		registration.AggregateProvider = aggregate
 	}
 
 	register(registration)
@@ -34,15 +34,11 @@ func Resolve(messageType string) (Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	if registration.Realtime == nil || registration.Aggregate == nil {
+	if registration.RealtimeEvaluator == nil || registration.AggregateProvider == nil {
 		return nil, fmt.Errorf("%w: full handler is not implemented for %s", ErrCapabilityNotImplemented, messageType)
 	}
 
-	return resolvedHandler{
-		spec:      registration.Spec,
-		realtime:  registration.Realtime,
-		aggregate: registration.Aggregate,
-	}, nil
+	return registration, nil
 }
 
 func ResolveSpec(messageType string) (MessageTypeSpec, error) {
@@ -58,10 +54,10 @@ func ResolveRealtime(messageType string) (MessageTypeSpec, RealtimeEvaluator, er
 	if err != nil {
 		return nil, nil, err
 	}
-	if registration.Realtime == nil {
+	if registration.RealtimeEvaluator == nil {
 		return nil, nil, fmt.Errorf("%w: realtime evaluator is not implemented for %s", ErrCapabilityNotImplemented, messageType)
 	}
-	return registration.Spec, registration.Realtime, nil
+	return registration.Spec, registration.RealtimeEvaluator, nil
 }
 
 func ResolveAggregate(messageType string) (MessageTypeSpec, AggregateProvider, error) {
@@ -69,39 +65,17 @@ func ResolveAggregate(messageType string) (MessageTypeSpec, AggregateProvider, e
 	if err != nil {
 		return nil, nil, err
 	}
-	if registration.Aggregate == nil {
+	if registration.AggregateProvider == nil {
 		return nil, nil, fmt.Errorf("%w: aggregate provider is not implemented for %s", ErrCapabilityNotImplemented, messageType)
 	}
-	return registration.Spec, registration.Aggregate, nil
-}
-
-type resolvedHandler struct {
-	spec      MessageTypeSpec
-	realtime  RealtimeEvaluator
-	aggregate AggregateProvider
-}
-
-func (h resolvedHandler) MessageType() string {
-	return h.spec.MessageType()
-}
-
-func (h resolvedHandler) NewFilter() any {
-	return h.spec.NewFilter()
-}
-
-func (h resolvedHandler) Evaluate(ctx context.Context, req *RealtimeRequest) (*RealtimeResult, error) {
-	return h.realtime.Evaluate(ctx, req)
-}
-
-func (h resolvedHandler) Aggregate(ctx context.Context, req *BizAggregateRequest) (*BizAggregateResult, error) {
-	return h.aggregate.Aggregate(ctx, req)
+	return registration.Spec, registration.AggregateProvider, nil
 }
 
 func register(registration Registration) {
 	if registration.Spec == nil {
 		panic(fmt.Errorf("%w: message type spec is required", ErrInvalidRequest))
 	}
-	if registration.Realtime == nil && registration.Aggregate == nil {
+	if registration.RealtimeEvaluator == nil && registration.AggregateProvider == nil {
 		panic(fmt.Errorf("%w: at least one capability is required", ErrInvalidRequest))
 	}
 
@@ -126,4 +100,20 @@ func resolveRegistration(messageType string) (Registration, error) {
 		return Registration{}, fmt.Errorf("%w: %s", ErrHandlerNotFound, messageType)
 	}
 	return registration, nil
+}
+
+func (r Registration) MessageType() string {
+	return r.Spec.MessageType()
+}
+
+func (r Registration) NewFilter() any {
+	return r.Spec.NewFilter()
+}
+
+func (r Registration) Evaluate(ctx context.Context, req *RealtimeRequest) (*RealtimeResult, error) {
+	return r.RealtimeEvaluator.Evaluate(ctx, req)
+}
+
+func (r Registration) Aggregate(ctx context.Context, req *BizAggregateRequest) (*BizAggregateResult, error) {
+	return r.AggregateProvider.Aggregate(ctx, req)
 }
