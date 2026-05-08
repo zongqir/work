@@ -150,8 +150,8 @@ func TestValidateConfigRejectsExternalMetadata(t *testing.T) {
 			TemplateCode: "sample_both_default",
 			Audience:     model.AudienceConfig{To: []string{"owner@example.com"}},
 		},
-		UpdatedBy:       "user",
-		UpdatedAt:       time.Now(),
+		UpdatedBy: "user",
+		UpdatedAt: time.Now(),
 	})
 	if !errors.Is(err, contract.ErrInvalidRequest) {
 		t.Fatalf("expected invalid request, got %v", err)
@@ -160,9 +160,9 @@ func TestValidateConfigRejectsExternalMetadata(t *testing.T) {
 
 func TestValidateConfigRejectsMissingEmailAudience(t *testing.T) {
 	err := ValidateConfig(&model.MessageConfig{
-		MessageType:      "sample_both",
-		RealtimeEnabled:  true,
-		Channel:          model.ChannelPolicy{Channel: "email", TemplateCode: "sample_both_default"},
+		MessageType:     "sample_both",
+		RealtimeEnabled: true,
+		Channel:         model.ChannelPolicy{Channel: "email", TemplateCode: "sample_both_default"},
 	})
 	if !errors.Is(err, contract.ErrUnsupportedConfig) {
 		t.Fatalf("expected unsupported config, got %v", err)

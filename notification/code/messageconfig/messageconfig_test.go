@@ -18,6 +18,9 @@ func TestLoaderLoadView(t *testing.T) {
 						Channel: model.ChannelPolicy{
 							Channel:      "email",
 							TemplateCode: "tenant",
+							Audience: model.AudienceConfig{
+								To: []string{"owner@example.com"},
+							},
 						},
 					},
 				},
@@ -44,7 +47,11 @@ func TestValidateDelegatesToCapability(t *testing.T) {
 	if err := Validate(&model.MessageConfig{
 		MessageType:     "sample_both",
 		RealtimeEnabled: true,
-		Channel:         model.ChannelPolicy{Channel: "email", TemplateCode: "sample_both_default"},
+		Channel: model.ChannelPolicy{
+			Channel:      "email",
+			TemplateCode: "sample_both_default",
+			Audience:     model.AudienceConfig{To: []string{"owner@example.com"}},
+		},
 	}); err != nil {
 		t.Fatalf("Validate failed: %v", err)
 	}
