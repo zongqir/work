@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://notification.local/schema/channel_policy.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["channel"],
+  "properties": {
+    "channel": {
+      "enum": ["email", "sms", "webhook", "wecom"]
+    },
+    "template_code": {
+      "type": "string",
+      "minLength": 1
+    },
+    "template_key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "audience": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "to": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "cc": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "bcc": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "recipients": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "phone": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        }
+      }
+    },
+    "delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "platform": {
+          "type": "string",
+          "minLength": 1
+        },
+        "secret": {
+          "type": "string",
+          "minLength": 1
+        },
+        "agent_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "channel": { "const": "email" } },
+        "required": ["channel"]
+      },
+      "then": {
+        "required": ["template_code", "audience"],
+        "properties": {
+          "audience": { "required": ["to"] }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "channel": { "const": "sms" } },
+        "required": ["channel"]
+      },
+      "then": {
+        "required": ["template_key", "audience", "delivery"],
+        "properties": {
+          "audience": { "required": ["recipients"] },
+          "delivery": { "required": ["platform"] }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "channel": { "const": "webhook" } },
+        "required": ["channel"]
+      },
+      "then": {
+        "required": ["template_code", "delivery"],
+        "properties": {
+          "delivery": { "required": ["url"] }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "channel": { "const": "wecom" } },
+        "required": ["channel"]
+      },
+      "then": {
+        "required": ["template_code", "audience", "delivery"],
+        "properties": {
+          "audience": { "required": ["phone"] },
+          "delivery": { "required": ["secret", "agent_id"] }
+        }
+      }
+    }
+  ]
+}

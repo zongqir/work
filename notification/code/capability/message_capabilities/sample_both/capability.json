@@ -12,18 +12,5 @@
       "channel": "webhook",
       "label": "Webhook"
     }
-  ],
-  "filter_fields": [
-    {
-      "name": "severity",
-      "label": "Severity",
-      "type": "string_array",
-      "options": ["low", "medium", "high", "critical"]
-    },
-    {
-      "name": "sample_limit",
-      "label": "Sample Limit",
-      "type": "integer"
-    }
   ]
 }

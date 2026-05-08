@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["message_type", "channel"],
+  "properties": {
+    "tenant_id": { "type": "string" },
+    "message_type": { "const": "sample_realtime_only" },
+    "realtime_enabled": { "type": "boolean" },
+    "aggregate_enabled": { "const": false },
+    "filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "severity": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["low", "medium", "high", "critical"] }
+        }
+      }
+    },
+    "channel": {
+      "allOf": [
+        { "$ref": "https://notification.local/schema/channel_policy.json" },
+        {
+          "properties": {
+            "channel": { "enum": ["email"] }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -7,13 +7,5 @@
       "channel": "email",
       "label": "Email"
     }
-  ],
-  "filter_fields": [
-    {
-      "name": "severity",
-      "label": "Severity",
-      "type": "string_array",
-      "options": ["low", "medium", "high", "critical"]
-    }
   ]
 }

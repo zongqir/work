@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"work/notification/code/capability"
-	"work/notification/code/contract"
 	"work/notification/code/config"
+	"work/notification/code/contract"
 	"work/notification/code/model"
 )
 

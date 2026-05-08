@@ -42,9 +42,9 @@ func TestLoaderLoadView(t *testing.T) {
 
 func TestValidateDelegatesToCapability(t *testing.T) {
 	if err := Validate(&model.MessageConfig{
-		MessageType:      "sample_both",
-		RealtimeEnabled:  true,
-		Channel:          model.ChannelPolicy{Channel: "email"},
+		MessageType:     "sample_both",
+		RealtimeEnabled: true,
+		Channel:         model.ChannelPolicy{Channel: "email", TemplateCode: "sample_both_default"},
 	}); err != nil {
 		t.Fatalf("Validate failed: %v", err)
 	}
