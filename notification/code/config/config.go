@@ -144,28 +144,6 @@ func runtimeMessageConfig(item *model.MessageConfig) *MessageConfig {
 		AggregateEnabled:       item.AggregateEnabled,
 		AggregatePeriodMinutes: item.AggregatePeriodMinutes,
 		Filter:                 item.Filter,
-		Channel:                renderChannelPolicy(item.Channel),
-	}
-}
-
-func renderChannelPolicy(channel model.ChannelPolicy) render.ChannelPolicy {
-	return render.ChannelPolicy{
-		Channel:      channel.Channel,
-		TemplateCode: channel.TemplateCode,
-		TemplateKey:  channel.TemplateKey,
-		Audience: render.AudienceConfig{
-			To:         channel.Audience.To,
-			Cc:         channel.Audience.Cc,
-			Bcc:        channel.Audience.Bcc,
-			Recipients: channel.Audience.Recipients,
-			Phone:      channel.Audience.Phone,
-		},
-		Delivery: render.DeliveryConfig{
-			Platform: channel.Delivery.Platform,
-			Secret:   channel.Delivery.Secret,
-			AgentID:  channel.Delivery.AgentID,
-			URL:      channel.Delivery.URL,
-			Headers:  channel.Delivery.Headers,
-		},
+		Channel:                item.Channel,
 	}
 }

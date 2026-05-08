@@ -32,7 +32,11 @@ type Dispatcher struct {
 }
 
 func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType string, windowStart, windowEnd time.Time) (bool, error) {
-	spec, aggregate, cfg, err := d.prepareAggregate(ctx, tenantID, messageType)
+	spec, aggregate, err := contract.ResolveAggregate(messageType)
+	if err != nil {
+		return false, err
+	}
+	cfg, err := d.loadConfig(ctx, tenantID, messageType)
 	if err != nil {
 		return false, err
 	}
@@ -85,21 +89,14 @@ func (d *Dispatcher) SendAggregate(ctx context.Context, tenantID, messageType st
 }
 
 func (d *Dispatcher) SendRealtime(ctx context.Context, tenantID, messageType string, event any) error {
-	spec, realtime, cfg, err := d.prepareRealtime(ctx, tenantID, messageType)
+	spec, realtime, err := contract.ResolveRealtime(messageType)
 	if err != nil {
 		return err
 	}
-	return d.sendRealtime(ctx, tenantID, spec, realtime, cfg, event)
-}
-
-func (d *Dispatcher) sendRealtime(
-	ctx context.Context,
-	tenantID string,
-	spec contract.MessageTypeSpec,
-	realtime contract.RealtimeEvaluator,
-	cfg *config.MessageConfig,
-	event any,
-) error {
+	cfg, err := d.loadConfig(ctx, tenantID, messageType)
+	if err != nil {
+		return err
+	}
 	if cfg == nil || !cfg.RealtimeEnabled {
 		return nil
 	}
@@ -149,32 +146,6 @@ func (d *Dispatcher) sendRealtime(
 		BizVars:        realtimeResult.BizVars,
 	})
 	return err
-}
-
-func (d *Dispatcher) prepareRealtime(ctx context.Context, tenantID, messageType string) (contract.MessageTypeSpec, contract.RealtimeEvaluator, *config.MessageConfig, error) {
-	spec, realtime, err := contract.ResolveRealtime(messageType)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	cfg, err := d.loadConfig(ctx, tenantID, messageType)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return spec, realtime, cfg, nil
-}
-
-func (d *Dispatcher) prepareAggregate(ctx context.Context, tenantID, messageType string) (contract.MessageTypeSpec, contract.AggregateProvider, *config.MessageConfig, error) {
-	spec, aggregate, err := contract.ResolveAggregate(messageType)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	cfg, err := d.loadConfig(ctx, tenantID, messageType)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return spec, aggregate, cfg, nil
 }
 
 func (d *Dispatcher) loadConfig(ctx context.Context, tenantID, messageType string) (*config.MessageConfig, error) {

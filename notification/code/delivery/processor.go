@@ -52,42 +52,11 @@ type Processor struct {
 }
 
 func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) error {
-	if p == nil || len(p.Senders) == 0 {
-		return fmt.Errorf("%w: senders are required", contract.ErrInvalidRequest)
-	}
-	if p.LoadConfig == nil {
-		return fmt.Errorf("%w: load_config is required", contract.ErrInvalidRequest)
-	}
-	if p.TemplateRoot == "" {
-		return fmt.Errorf("%w: template_root is required", contract.ErrInvalidRequest)
-	}
-	if p.Recorder == nil {
-		return fmt.Errorf("%w: recorder is required", contract.ErrInvalidRequest)
-	}
-	if msg == nil {
-		return fmt.Errorf("%w: dispatch message is nil", contract.ErrInvalidRequest)
-	}
-	if msg.IdempotencyKey == "" {
-		return fmt.Errorf("%w: idempotency_key is required", contract.ErrInvalidRequest)
-	}
-	if msg.TenantID == "" {
-		return fmt.Errorf("%w: tenant_id is required", contract.ErrInvalidRequest)
-	}
-	if msg.MessageType == "" {
-		return fmt.Errorf("%w: message_type is required", contract.ErrInvalidRequest)
-	}
-	if msg.ExpectedSendAt.IsZero() {
-		return fmt.Errorf("%w: expected_send_at is required", contract.ErrInvalidRequest)
-	}
-	if msg.ExpireAt.IsZero() {
-		return fmt.Errorf("%w: expire_at is required", contract.ErrInvalidRequest)
+	if err := p.validate(msg); err != nil {
+		return err
 	}
 
-	now := time.Now
-	if p.Now != nil {
-		now = p.Now
-	}
-	current := now()
+	current := p.now()
 
 	if current.Before(msg.ExpectedSendAt) {
 		return &contract.DelayError{
@@ -96,12 +65,7 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 		}
 	}
 	if current.After(msg.ExpireAt) {
-		record := *msg
-		return p.Recorder.Save(ctx, &SendRecord{
-			DispatchMessage: record,
-			Status:          StatusExpired,
-			UpdatedAt:       current,
-		})
+		return p.saveStatus(ctx, msg, StatusExpired, "", current)
 	}
 
 	cfg, err := p.LoadConfig(ctx, msg.TenantID, msg.MessageType)
@@ -143,36 +107,62 @@ func (p *Processor) Process(ctx context.Context, msg *contract.DispatchMessage) 
 		}
 		err = sender.Send(ctx, msg, channelCfg, channel)
 		if err != nil {
-			if errors.Is(err, contract.ErrInvalidRequest) || errors.Is(err, contract.ErrUnsupportedConfig) {
-				return p.saveFailure(ctx, msg, current, err)
-			}
-			maxRetry := p.MaxRetry
-			if maxRetry <= 0 {
-				maxRetry = DefaultMaxRetry
-			}
-			if msg.RetryCount < maxRetry {
-				if p.Publisher == nil {
-					return fmt.Errorf("%w: publisher is required", contract.ErrTemporaryFailure)
-				}
-				retryDelay := p.RetryDelay
-				if retryDelay <= 0 {
-					retryDelay = time.Minute
-				}
-				retry := *msg
-				retry.RetryCount++
-				retry.ExpectedSendAt = current.Add(retryDelay)
-				return p.Publisher.Publish(ctx, &retry)
-			}
-			return p.saveFailure(ctx, msg, current, err)
+			return p.handleSendError(ctx, msg, current, err)
 		}
 	}
 
-	record := *msg
-	return p.Recorder.Save(ctx, &SendRecord{
-		DispatchMessage: record,
-		Status:          StatusSuccess,
-		UpdatedAt:       current,
-	})
+	return p.saveStatus(ctx, msg, StatusSuccess, "", current)
+}
+
+func (p *Processor) validate(msg *contract.DispatchMessage) error {
+	if p == nil || len(p.Senders) == 0 {
+		return fmt.Errorf("%w: senders are required", contract.ErrInvalidRequest)
+	}
+	if p.LoadConfig == nil {
+		return fmt.Errorf("%w: load_config is required", contract.ErrInvalidRequest)
+	}
+	if p.TemplateRoot == "" {
+		return fmt.Errorf("%w: template_root is required", contract.ErrInvalidRequest)
+	}
+	if p.Recorder == nil {
+		return fmt.Errorf("%w: recorder is required", contract.ErrInvalidRequest)
+	}
+	if msg == nil {
+		return fmt.Errorf("%w: dispatch message is nil", contract.ErrInvalidRequest)
+	}
+	if msg.IdempotencyKey == "" {
+		return fmt.Errorf("%w: idempotency_key is required", contract.ErrInvalidRequest)
+	}
+	if msg.TenantID == "" {
+		return fmt.Errorf("%w: tenant_id is required", contract.ErrInvalidRequest)
+	}
+	if msg.MessageType == "" {
+		return fmt.Errorf("%w: message_type is required", contract.ErrInvalidRequest)
+	}
+	if msg.ExpectedSendAt.IsZero() {
+		return fmt.Errorf("%w: expected_send_at is required", contract.ErrInvalidRequest)
+	}
+	if msg.ExpireAt.IsZero() {
+		return fmt.Errorf("%w: expire_at is required", contract.ErrInvalidRequest)
+	}
+	return nil
+}
+
+func (p *Processor) handleSendError(ctx context.Context, msg *contract.DispatchMessage, current time.Time, err error) error {
+	if errors.Is(err, contract.ErrInvalidRequest) || errors.Is(err, contract.ErrUnsupportedConfig) {
+		return p.saveFailure(ctx, msg, current, err)
+	}
+	if msg.RetryCount >= p.maxRetry() {
+		return p.saveFailure(ctx, msg, current, err)
+	}
+	if p.Publisher == nil {
+		return fmt.Errorf("%w: publisher is required", contract.ErrTemporaryFailure)
+	}
+
+	retry := *msg
+	retry.RetryCount++
+	retry.ExpectedSendAt = current.Add(p.retryDelay())
+	return p.Publisher.Publish(ctx, &retry)
 }
 
 func (p *Processor) loadSystemVars(ctx context.Context, msg *contract.DispatchMessage) (contract.TemplateVars, error) {
@@ -187,11 +177,36 @@ func (p *Processor) loadSystemVars(ctx context.Context, msg *contract.DispatchMe
 }
 
 func (p *Processor) saveFailure(ctx context.Context, msg *contract.DispatchMessage, current time.Time, err error) error {
+	return p.saveStatus(ctx, msg, StatusFailed, err.Error(), current)
+}
+
+func (p *Processor) saveStatus(ctx context.Context, msg *contract.DispatchMessage, status Status, errorMessage string, current time.Time) error {
 	record := *msg
 	return p.Recorder.Save(ctx, &SendRecord{
 		DispatchMessage: record,
-		Status:          StatusFailed,
-		ErrorMessage:    err.Error(),
+		Status:          status,
+		ErrorMessage:    errorMessage,
 		UpdatedAt:       current,
 	})
+}
+
+func (p *Processor) now() time.Time {
+	if p.Now != nil {
+		return p.Now()
+	}
+	return time.Now()
+}
+
+func (p *Processor) maxRetry() int {
+	if p.MaxRetry > 0 {
+		return p.MaxRetry
+	}
+	return DefaultMaxRetry
+}
+
+func (p *Processor) retryDelay() time.Duration {
+	if p.RetryDelay > 0 {
+		return p.RetryDelay
+	}
+	return time.Minute
 }
